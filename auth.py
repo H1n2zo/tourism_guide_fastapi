@@ -73,13 +73,20 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> Optiona
         if user_id_raw is None:
             return None
         
-        # Convert to int safely
-        user_id: int = int(user_id_raw) if isinstance(user_id_raw, (int, str)) else 0
+        # Convert to int safely - handle both string and int
+        try:
+            user_id = int(user_id_raw)
+        except (ValueError, TypeError):
+            return None
         
         user = db.query(User).filter(User.id == user_id).first()
         return user
     
-    except (JWTError, ValueError, TypeError):
+    except JWTError:
+        return None
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Error in get_current_user: {str(e)}")
         return None
 
 
@@ -97,7 +104,8 @@ def require_login(request: Request, db: Session = Depends(get_db)) -> User:
 def require_admin(request: Request, db: Session = Depends(get_db)) -> User:
     """Dependency that requires user to be admin"""
     user = require_login(request, db)
-    if user.role != 'admin':  # type: ignore
+    user_role = str(user.role) if hasattr(user, 'role') else 'user'
+    if user_role != 'admin':
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -128,7 +136,7 @@ async def login(
     # Find user
     user = db.query(User).filter(User.username == username).first()
     
-    # Verify password - get the actual password string from Column
+    # Verify user exists
     if not user:
         return templates.TemplateResponse("login.html", {
             "request": request,
@@ -136,9 +144,17 @@ async def login(
             "success": None
         })
     
-    # Get the hashed password value
-    stored_password = str(user.password)
+    # Get the hashed password value - handle both direct access and string conversion
+    try:
+        stored_password = str(user.password) if hasattr(user.password, '__str__') else user.password
+    except Exception:
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": "Authentication error. Please try again.",
+            "success": None
+        })
     
+    # Verify password
     if not verify_password(password, stored_password):
         return templates.TemplateResponse("login.html", {
             "request": request,
@@ -146,11 +162,11 @@ async def login(
             "success": None
         })
     
-    # Create access token
-    access_token = create_access_token(data={"sub": user.id, "role": user.role})
+    # Create access token - ensure user.id is converted to string for JWT
+    access_token = create_access_token(data={"sub": str(user.id), "role": str(user.role)})
     
     # Redirect based on role
-    if user.role == 'admin':  # type: ignore
+    if str(user.role) == 'admin':
         response = RedirectResponse(url="/admin/dashboard", status_code=303)
     else:
         response = RedirectResponse(url="/", status_code=303)
