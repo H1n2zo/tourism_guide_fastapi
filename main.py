@@ -215,7 +215,6 @@ async def health_check(db: Session = Depends(get_db)):
         "database": db_status
     }
 
-
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",

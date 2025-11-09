@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if edit_mode %}Edit{% else %}Add{% endif %} Destination - Tourism Admin</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📍</text></svg>">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #2e50e8ff 0%, #8017e8ff 100%);
+            color: white;
+            position: fixed;
+            width: 250px;
+        }
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.8);
+            padding: 15px 20px;
+            transition: all 0.3s;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+        .image-preview {
+            max-width: 300px;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+        #map {
+            height: 400px;
+            border-radius: 5px;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="p-4">
+            <h4><i class="fas fa-map-marked-alt"></i> Tourism Admin</h4>
+            <hr class="bg-white">
+        </div>
+        <nav class="nav flex-column">
+            <a class="nav-link" href="/admin/dashboard">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a>
+            <a class="nav-link active" href="/admin/destinations">
+                <i class="fas fa-map-pin"></i> Destinations
+            </a>
+            <a class="nav-link" href="/admin/categories">
+                <i class="fas fa-tags"></i> Categories
+            </a>
+            <a class="nav-link" href="/admin/users">
+                <i class="fas fa-users"></i> Users
+            </a>
+            <hr class="bg-white">
+            <a class="nav-link" href="/">
+                <i class="fas fa-globe"></i> View Site
+            </a>
+            <a class="nav-link" href="/logout">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-{% if edit_mode %}edit{% else %}plus{% endif %}"></i>
+                {% if edit_mode %}Edit{% else %}Add New{% endif %} Destination
+            </h2>
+            <a href="/admin/destinations" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to List
+            </a>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show">
+            {{ error }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endif %}
+
+        {% if success %}
+        <div class="alert alert-success alert-dismissible fade show">
+            {{ success }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/admin/destinations/save" enctype="multipart/form-data">
+            {% if edit_mode %}
+            <input type="hidden" name="id" value="{{ destination.id }}">
+            {% endif %}
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- Basic Information -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-info-circle"></i> Basic Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Destination Name *</label>
+                                <input type="text" class="form-control" name="name" 
+                                       value="{% if destination %}{{ destination.name }}{% endif %}" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Category *</label>
+                                <select class="form-select" name="category_id" required>
+                                    <option value="">Select Category</option>
+                                    {% for cat in categories %}
+                                    <option value="{{ cat.id }}" 
+                                        {% if destination and destination.category_id == cat.id %}selected{% endif %}>
+                                        {{ cat.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Description</label>
+                                <textarea class="form-control" name="description" rows="5">{% if destination %}{{ destination.description }}{% endif %}</textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Address</label>
+                                <textarea class="form-control" name="address" rows="2">{% if destination %}{{ destination.address }}{% endif %}</textarea>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Rating (0-5)</label>
+                                    <input type="number" class="form-control" name="rating" 
+                                           min="0" max="5" step="0.1" 
+                                           value="{% if destination %}{{ destination.rating }}{% else %}0{% endif %}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Status</label>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="is_active" 
+                                               {% if not destination or destination.is_active %}checked{% endif %}>
+                                        <label class="form-check-label">Active</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Location -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fas fa-map-marker-alt"></i> Location Coordinates</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Latitude</label>
+                                    <input type="number" class="form-control" name="latitude" 
+                                           id="latitude" step="any" 
+                                           value="{% if destination %}{{ destination.latitude }}{% endif %}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Longitude</label>
+                                    <input type="number" class="form-control" name="longitude" 
+                                           id="longitude" step="any" 
+                                           value="{% if destination %}{{ destination.longitude }}{% endif %}">
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="showMapPicker()">
+                                <i class="fas fa-map"></i> Pick on Map
+                            </button>
+                            <div id="map"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <!-- Featured Image -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="fas fa-image"></i> Featured Image</h5>
+                        </div>
+                        <div class="card-body">
+                            <input type="file" class="form-control" name="image" 
+                                   accept="image/*" onchange="previewImage(this)">
+                            <small class="text-muted">Max 5MB. JPG, PNG, GIF, WEBP</small>
+                            {% if edit_mode and destination.image_path %}
+                            <img src="{{ UPLOAD_URL }}{{ destination.image_path }}" 
+                                 class="image-preview img-fluid" id="imagePreview">
+                            {% else %}
+                            <img id="imagePreview" class="image-preview img-fluid" style="display:none;">
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Contact Information -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0"><i class="fas fa-phone"></i> Contact Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Contact Number</label>
+                                <input type="text" class="form-control" name="contact_number" 
+                                       value="{% if destination %}{{ destination.contact_number }}{% endif %}">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" name="email" 
+                                       value="{% if destination %}{{ destination.email }}{% endif %}">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Website</label>
+                                <input type="url" class="form-control" name="website" 
+                                       value="{% if destination %}{{ destination.website }}{% endif %}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Info -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0"><i class="fas fa-clock"></i> Additional Info</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Opening Hours</label>
+                                <input type="text" class="form-control" name="opening_hours" 
+                                       placeholder="e.g., 8:00 AM - 5:00 PM"
+                                       value="{% if destination %}{{ destination.opening_hours }}{% endif %}">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Entry Fee</label>
+                                <input type="text" class="form-control" name="entry_fee" 
+                                       placeholder="e.g., PHP 50 or Free"
+                                       value="{% if destination %}{{ destination.entry_fee }}{% endif %}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-end">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save"></i> {% if edit_mode %}Update{% else %}Save{% endif %} Destination
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        function previewImage(input) {
+            const preview = document.getElementById('imagePreview');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        let map, marker;
+        function showMapPicker() {
+            const mapDiv = document.getElementById('map');
+            mapDiv.style.display = 'block';
+            
+            const lat = parseFloat(document.getElementById('latitude').value) || 11.0059;
+            const lng = parseFloat(document.getElementById('longitude').value) || 124.6075;
+            
+            if (!map) {
+                map = L.map('map').setView([lat, lng], 13);
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap',
+                    maxZoom: 19
+                }).addTo(map);
+                
+                marker = L.marker([lat, lng], {draggable: true}).addTo(map);
+                
+                marker.on('dragend', function() {
+                    const pos = marker.getLatLng();
+                    document.getElementById('latitude').value = pos.lat;
+                    document.getElementById('longitude').value = pos.lng;
+                });
+                
+                map.on('click', function(e) {
+                    marker.setLatLng(e.latlng);
+                    document.getElementById('latitude').value = e.latlng.lat;
+                    document.getElementById('longitude').value = e.latlng.lng;
+                });
+            }
+        }
+    </script>
+</body>
+</html>
