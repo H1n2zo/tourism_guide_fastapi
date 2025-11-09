@@ -179,6 +179,10 @@
             color: #999;
         }
         .leaflet-routing-container { display: none; }
+        .custom-route-marker {
+            background: transparent !important;
+            border: none !important;
+        }
     </style>
 </head>
 <body>
@@ -449,17 +453,6 @@
                         ? `<div style="color: #ffc107;">${'★'.repeat(Math.round(dest.avg_rating))}${'☆'.repeat(5-Math.round(dest.avg_rating))}</div>`
                         : '<div style="color: #999; font-style: italic;">Not rated</div>';
                     
-                    const popupContent = `
-                        <div style="min-width: 200px;">
-                            ${dest.image_path ? `<img src="{{ UPLOAD_URL }}${dest.image_path}" style="width:100%;height:120px;object-fit:cover;border-radius:5px;margin-bottom:8px;">` : ''}
-                            <h6>${dest.name}</h6>
-                            <p><i class="fas ${dest.icon}"></i> ${dest.category_name}</p>
-                            ${ratingHtml}
-                            <a href="/destination/${dest.id}" class="btn btn-sm btn-primary" style="margin-top:8px;">View Details</a>
-                        </div>
-                    `;
-                    
-                    marker.bindPopup(popupContent);
                 }
             });
         }
@@ -515,7 +508,18 @@
             let html = '';
             routes.forEach(route => {
                 const icon = transportIcons[route.transport_mode] || 'fa-bus';
-                const totalFare = route.base_fare ? parseFloat(route.base_fare) : 0;
+                
+                // USE DATABASE VALUES ONLY - NO CALCULATIONS
+                const dbDistance = route.distance_km || 0;
+                const dbTime = route.estimated_time_minutes || 0;
+                const dbBaseFare = route.base_fare || 0;
+                const dbFarePerKm = route.fare_per_km || 0;
+                
+                // Calculate total fare based on transport mode
+                let totalFare = dbBaseFare;
+                if (['taxi', 'van'].includes(route.transport_mode) && dbDistance > 0) {
+                    totalFare = dbBaseFare + (dbDistance * dbFarePerKm);
+                }
                 
                 html += `
                     <div class="route-card" onclick="showRouteOnMap(${route.id}, ${route.origin_id}, ${route.destination_id})">
@@ -532,16 +536,16 @@
                                 </p>
                                 <div class="mb-2">
                                     <span class="route-info-badge badge-distance">
-                                        <i class="fas fa-road"></i> ${route.distance_km ? route.distance_km + ' km' : 'N/A'}
+                                        <i class="fas fa-road"></i> ${dbDistance > 0 ? dbDistance + ' km' : 'N/A'}
                                     </span>
                                     <span class="route-info-badge badge-time">
-                                        <i class="fas fa-clock"></i> ${route.estimated_time_minutes ? route.estimated_time_minutes + ' min' : 'N/A'}
+                                        <i class="fas fa-clock"></i> ${dbTime > 0 ? dbTime + ' min' : 'N/A'}
                                     </span>
                                     <span class="route-info-badge badge-fare">
                                         <i class="fas fa-money-bill-wave"></i> PHP ${totalFare.toFixed(2)}
                                     </span>
                                 </div>
-                                ${route.description ? `<p class="mb-0 small text-muted">${route.description}</p>` : ''}
+                                ${route.description && route.description !== '0' ? `<p class="mb-0 small text-muted">${route.description}</p>` : ''}
                             </div>
                         </div>
                     </div>
@@ -565,14 +569,13 @@
             
             const origin = destinationsMap[originId];
             const destination = destinationsMap[destinationId];
-            const route = allRoutes.find(r => r.id === routeId);
             
             if (!origin || !destination) {
                 alert('Cannot display route - coordinates not available');
                 return;
             }
             
-            // Create routing control to show waypoints
+            // Create routing control to show route line
             currentRoutingControl = L.Routing.control({
                 waypoints: [
                     L.latLng(origin.lat, origin.lng),
@@ -581,42 +584,18 @@
                 routeWhileDragging: false,
                 show: false,
                 createMarker: function(i, waypoint, n) {
-                    const marker = L.marker(waypoint.latLng, {
+                    return L.marker(waypoint.latLng, {
                         icon: L.divIcon({
-                            className: 'route-marker',
-                            html: `<div style="background: ${i === 0 ? '#28a745' : '#dc3545'}; color: white; padding: 5px 10px; border-radius: 5px; font-weight: bold;">${i === 0 ? 'Start' : 'End'}</div>`
+                            className: 'custom-route-marker',
+                            html: `<div style="background: ${i === 0 ? '#28a745' : '#dc3545'}; color: white; padding: 8px 12px; border-radius: 8px; font-weight: bold; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">${i === 0 ? 'Start: ' + origin.name : 'End: ' + destination.name}</div>`,
+                            iconSize: [null, null],
+                            iconAnchor: [0, 0]
                         })
                     });
-                    return marker;
                 },
                 lineOptions: {
                     styles: [{color: '#667eea', opacity: 0.8, weight: 5}]
                 }
-            }).on('routesfound', function(e) {
-                const routes = e.routes;
-                const summary = routes[0].summary;
-                
-                // Get actual distance from Leaflet in km
-                const actualDistance = (summary.totalDistance / 1000).toFixed(2);
-                const actualDuration = Math.round(summary.totalTime / 60);
-                
-            // Calculate fare based on transport mode and database values
-            let calculatedFare = 0;
-            const baseFare = route.base_fare || 0;
-            const farePerKm = route.fare_per_km || 0;
-
-            // For distance-based transport (like taxi or van)
-            if (['taxi', 'van'].includes(route.transport_mode)) {
-                calculatedFare = baseFare + (actualDistance * farePerKm);
-            }
-            // For fixed-fare transport (like jeepney, bus, tricycle, walking)
-            else {
-                calculatedFare = baseFare;
-            }
-
-                
-                // Show route info popup
-                showRouteInfoPopup(route, actualDistance, actualDuration, calculatedFare);
             }).addTo(map);
             
             // Fit map to route
@@ -628,113 +607,6 @@
             
             // Scroll to map
             document.getElementById('mapI').scrollIntoView({behavior: 'smooth', block: 'center'});
-        }
-        
-        function showRouteInfoPopup(route, actualDistance, actualDuration, calculatedFare) {
-            // Remove existing popup if any
-            const existingPopup = document.getElementById('routeInfoPopup');
-            if (existingPopup) {
-                existingPopup.remove();
-            }
-            
-            // Create popup
-            const popup = document.createElement('div');
-            popup.id = 'routeInfoPopup';
-            popup.style.cssText = `
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: white;
-                padding: 25px;
-                border-radius: 15px;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-                z-index: 10000;
-                max-width: 500px;
-                width: 90%;
-            `;
-            
-            const dbDistance = route.distance_km || 'N/A';
-            const dbDuration = route.estimated_time_minutes || 'N/A';
-            const dbFare = route.base_fare || 0;
-            
-            popup.innerHTML = `
-                <div style="text-align: center;">
-                    <h4 style="color: #667eea; margin-bottom: 20px;">
-                        <i class="fas fa-route"></i> ${route.route_name || 'Route Details'}
-                    </h4>
-                    
-                    <div style="text-align: left; margin-bottom: 20px;">
-                        <p style="margin-bottom: 10px;">
-                            <strong><i class="fas fa-map-marker-alt" style="color: #28a745;"></i> From:</strong> ${route.origin_name}
-                        </p>
-                        <p style="margin-bottom: 10px;">
-                            <strong><i class="fas fa-flag-checkered" style="color: #dc3545;"></i> To:</strong> ${route.destination_name}
-                        </p>
-                        <p style="margin-bottom: 10px;">
-                            <strong><i class="fas fa-bus" style="color: #ffc107;"></i> Transport:</strong> ${route.transport_mode.charAt(0).toUpperCase() + route.transport_mode.slice(1)}
-                        </p>
-                    </div>
-                    
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: center;">
-                            <div style="background: white; padding: 10px; border-radius: 8px;">
-                                <div style="font-size: 24px; font-weight: bold; color: #1976d2;">${actualDistance} km</div>
-                                <div style="font-size: 12px; color: #666;">Distance</div>
-                            </div>
-                            <div style="background: white; padding: 10px; border-radius: 8px;">
-                                <div style="font-size: 24px; font-weight: bold; color: #f57c00;">${actualDuration} min</div>
-                                <div style="font-size: 12px; color: #666;">Duration</div>
-                            </div>
-                        </div>
-                        <div style="background: white; padding: 10px; border-radius: 8px; margin-top: 10px;">
-                                                <div style="font-size: 24px; font-weight: bold; color: #388e3c;">PHP ${calculatedFare.toFixed(2)}</div>
-                                                <div style="font-size: 12px; color: #666;">Calculated Fare</div>
-                                                ${['taxi', 'van'].includes(route.transport_mode) 
-                        ? `<div style="font-size: 11px; color: #999; margin-top: 5px;">
-                            Base: PHP ${route.base_fare || 0} + ${route.fare_per_km || 0}/km
-                        </div>` 
-                        : `<div style="font-size: 11px; color: #999; margin-top: 5px;">
-                            Fixed Fare: PHP ${route.base_fare || 0}
-                        </div>`}
-
-                        </div>
-                    </div>
-                    
-                    ${route.description ? `
-                    <div style="background: #e3f2fd; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 13px; text-align: left;">
-                        <strong><i class="fas fa-info-circle"></i> Note:</strong> ${route.description}
-                    </div>
-                    ` : ''}
-                    
-                    <button onclick="document.getElementById('routeInfoPopup').remove()" 
-                            style="background: linear-gradient(135deg, #132365ff 0%, #4b59a3ff 100%); 
-                                   color: white; border: none; padding: 10px 30px; 
-                                   border-radius: 8px; cursor: pointer; font-size: 14px;">
-                        <i class="fas fa-times"></i> Close
-                    </button>
-                </div>
-            `;
-            
-            // Add overlay
-            const overlay = document.createElement('div');
-            overlay.id = 'routeInfoOverlay';
-            overlay.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0,0,0,0.5);
-                z-index: 9999;
-            `;
-            overlay.onclick = () => {
-                popup.remove();
-                overlay.remove();
-            };
-            
-            document.body.appendChild(overlay);
-            document.body.appendChild(popup);
         }
 
         function filterRoutes() {
