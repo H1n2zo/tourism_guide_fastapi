@@ -4,30 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tourism Guide System - Explore Ormoc City</title>
-    <meta name="description" content="Discover amazing places in Ormoc City with our interactive tourism guide.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗺️</text></svg>">
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
     
     <style>
-        body {
-            padding-top: 76px;
-        }
-        
+        body { padding-top: 76px; }
         .navbar {
             background: linear-gradient(135deg, #132365ff 0%, #4b59a3ff 100%);
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        
         .hero-section {
             background: linear-gradient(135deg, #132365ff 0%, #4b59a3ff 100%);
             color: white;
             padding: 80px 0;
             margin-bottom: 30px;
         }
-        
         .stats-row {
             display: flex;
             justify-content: center;
@@ -35,7 +30,6 @@
             margin-top: 30px;
             flex-wrap: wrap;
         }
-        
         .stat-item {
             text-align: center;
             background: rgba(255,255,255,0.1);
@@ -44,17 +38,12 @@
             backdrop-filter: blur(10px);
             transition: transform 0.3s;
         }
-        
-        .stat-item:hover {
-            transform: translateY(-5px);
-        }
-        
+        .stat-item:hover { transform: translateY(-5px); }
         .stat-item h3 {
             font-size: 2.5rem;
             font-weight: bold;
             margin: 0;
         }
-        
         .destination-card {
             transition: transform 0.3s, box-shadow 0.3s;
             height: 100%;
@@ -62,17 +51,14 @@
             border-radius: 10px;
             overflow: hidden;
         }
-        
         .destination-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-        
         .destination-card img {
             height: 200px;
             object-fit: cover;
         }
-        
         .category-badge {
             position: absolute;
             top: 10px;
@@ -82,7 +68,6 @@
             border-radius: 20px;
             font-size: 0.85rem;
         }
-        
         .search-box {
             background: white;
             padding: 30px;
@@ -92,29 +77,31 @@
             position: relative;
             z-index: 10;
         }
-        
         .rating {
             color: #ffc107;
             font-size: 0.95rem;
         }
-
         .rating-text {
             font-size: 0.85rem;
             color: #666;
         }
-
         .not-rated {
             color: #999;
             font-size: 0.85rem;
             font-style: italic;
         }
-        
         #map {
             height: 600px;
             border-radius: 10px;
             box-shadow: 0 5px 20px rgba(0,0,0,0.1);
         }
-        
+        .route-search-box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
         .route-card {
             background: white;
             border: 2px solid #e0e0e0;
@@ -124,30 +111,25 @@
             transition: all 0.3s;
             cursor: pointer;
         }
-        
         .route-card:hover {
             border-color: #667eea;
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
             transform: translateY(-2px);
         }
-        
         .route-card.selected {
             border-color: #667eea;
             background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
         }
-        
         .transport-icon {
             font-size: 2rem;
             margin-right: 15px;
         }
-        
         .transport-icon.jeepney { color: #ff6b6b; }
         .transport-icon.taxi { color: #feca57; }
         .transport-icon.bus { color: #48dbfb; }
         .transport-icon.van { color: #1dd1a1; }
         .transport-icon.tricycle { color: #ee5a6f; }
         .transport-icon.walking { color: #54a0ff; }
-        
         .route-info-badge {
             display: inline-block;
             padding: 5px 12px;
@@ -156,26 +138,9 @@
             margin-right: 8px;
             margin-bottom: 5px;
         }
-        
         .badge-distance { background: #e3f2fd; color: #1976d2; }
         .badge-time { background: #fff3e0; color: #f57c00; }
         .badge-fare { background: #e8f5e9; color: #388e3c; }
-        
-        html {
-            scroll-behavior: smooth;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-        }
-        
-        .empty-state i {
-            font-size: 4rem;
-            color: #ccc;
-            margin-bottom: 20px;
-        }
-        
         #backToTop {
             position: fixed;
             bottom: 30px;
@@ -194,29 +159,29 @@
             z-index: 1000;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
-        
         #backToTop.show {
             opacity: 1;
             visibility: visible;
         }
-
-        .route-search-box {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        html { scroll-behavior: smooth; }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        .empty-state i {
+            font-size: 4rem;
+            color: #ccc;
             margin-bottom: 20px;
         }
-
         .no-routes {
             text-align: center;
             padding: 40px;
             color: #999;
         }
+        .leaflet-routing-container { display: none; }
     </style>
 </head>
 <body>
-    <!-- Back to Top Button -->
     <button id="backToTop" title="Back to top">
         <i class="fas fa-arrow-up"></i>
     </button>
@@ -273,7 +238,6 @@
             <p class="lead mb-4">Explore tourist destinations, find routes, and plan your journey</p>
             <a href="#destinations" class="btn btn-light btn-lg"><i class="fas fa-compass"></i> Start Exploring</a>
             
-            <!-- Statistics Row -->
             <div class="stats-row">
                 <div class="stat-item">
                     <h3>{{ total_destinations }}</h3>
@@ -299,8 +263,7 @@
                     <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-search"></i></span>
                         <input type="text" class="form-control" name="search" 
-                               placeholder="Search destinations..." 
-                               value="{{ search }}">
+                               placeholder="Search destinations..." value="{{ search }}">
                     </div>
                 </div>
                 <div class="col-md-4">
@@ -330,13 +293,9 @@
                     <div class="card destination-card">
                         <div class="position-relative">
                             {% if dest.image_path %}
-                            <img src="{{ UPLOAD_URL }}{{ dest.image_path }}" 
-                                 class="card-img-top" 
-                                 alt="{{ dest.name }}">
+                            <img src="{{ UPLOAD_URL }}{{ dest.image_path }}" class="card-img-top" alt="{{ dest.name }}">
                             {% else %}
-                            <img src="https://via.placeholder.com/400x300?text={{ dest.name }}" 
-                                 class="card-img-top" 
-                                 alt="{{ dest.name }}">
+                            <img src="https://via.placeholder.com/400x300?text={{ dest.name }}" class="card-img-top" alt="{{ dest.name }}">
                             {% endif %}
                             <span class="category-badge">
                                 <i class="fas {{ dest.icon }}"></i> {{ dest.category_name }}
@@ -434,8 +393,8 @@
     </div>
 
     <!-- Map Section -->
-    <div class="container mt-4">
-        <h2 class="mb-4"><i class="fas fa-map" id ="mapI"></i> Interactive Map</h2>
+    <div class="container mt-4" id="mapI">
+        <h2 class="mb-4"><i class="fas fa-map"></i> Interactive Map</h2>
         <div id="map"></div>
     </div>
 
@@ -447,11 +406,14 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
     
     <script>
         const destinations = {{ destinations|tojson }};
         let map;
         let allRoutes = [];
+        let currentRoutingControl = null;
+        const destinationsMap = {};
 
         // Transport icons mapping
         const transportIcons = {
@@ -475,6 +437,12 @@
             // Add markers for all destinations
             destinations.forEach(dest => {
                 if (dest.latitude && dest.longitude) {
+                    destinationsMap[dest.id] = {
+                        lat: dest.latitude,
+                        lng: dest.longitude,
+                        name: dest.name
+                    };
+                    
                     const marker = L.marker([dest.latitude, dest.longitude]).addTo(map);
                     
                     const ratingHtml = dest.review_count > 0 
@@ -499,7 +467,7 @@
         function showOnMap(lat, lng, name) {
             if (lat && lng) {
                 map.setView([lat, lng], 15);
-                document.getElementById('map').scrollIntoView({behavior: 'smooth'});
+                document.getElementById('mapI').scrollIntoView({behavior: 'smooth'});
                 
                 map.eachLayer(layer => {
                     if (layer instanceof L.Marker) {
@@ -550,7 +518,7 @@
                 const totalFare = route.base_fare ? parseFloat(route.base_fare) : 0;
                 
                 html += `
-                    <div class="route-card" onclick="selectRoute(${route.id})">
+                    <div class="route-card" onclick="showRouteOnMap(${route.id}, ${route.origin_id}, ${route.destination_id})">
                         <div class="d-flex align-items-start">
                             <div class="transport-icon ${route.transport_mode}">
                                 <i class="fas ${icon}"></i>
@@ -583,6 +551,192 @@
             container.innerHTML = html;
         }
 
+        function showRouteOnMap(routeId, originId, destinationId) {
+            // Remove previous route
+            if (currentRoutingControl) {
+                map.removeControl(currentRoutingControl);
+            }
+            
+            // Clear previous selection
+            document.querySelectorAll('.route-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+            
+            const origin = destinationsMap[originId];
+            const destination = destinationsMap[destinationId];
+            const route = allRoutes.find(r => r.id === routeId);
+            
+            if (!origin || !destination) {
+                alert('Cannot display route - coordinates not available');
+                return;
+            }
+            
+            // Create routing control to show waypoints
+            currentRoutingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(origin.lat, origin.lng),
+                    L.latLng(destination.lat, destination.lng)
+                ],
+                routeWhileDragging: false,
+                show: false,
+                createMarker: function(i, waypoint, n) {
+                    const marker = L.marker(waypoint.latLng, {
+                        icon: L.divIcon({
+                            className: 'route-marker',
+                            html: `<div style="background: ${i === 0 ? '#28a745' : '#dc3545'}; color: white; padding: 5px 10px; border-radius: 5px; font-weight: bold;">${i === 0 ? 'Start' : 'End'}</div>`
+                        })
+                    });
+                    return marker;
+                },
+                lineOptions: {
+                    styles: [{color: '#667eea', opacity: 0.8, weight: 5}]
+                }
+            }).on('routesfound', function(e) {
+                const routes = e.routes;
+                const summary = routes[0].summary;
+                
+                // Get actual distance from Leaflet in km
+                const actualDistance = (summary.totalDistance / 1000).toFixed(2);
+                const actualDuration = Math.round(summary.totalTime / 60);
+                
+            // Calculate fare based on transport mode and database values
+            let calculatedFare = 0;
+            const baseFare = route.base_fare || 0;
+            const farePerKm = route.fare_per_km || 0;
+
+            // For distance-based transport (like taxi or van)
+            if (['taxi', 'van'].includes(route.transport_mode)) {
+                calculatedFare = baseFare + (actualDistance * farePerKm);
+            }
+            // For fixed-fare transport (like jeepney, bus, tricycle, walking)
+            else {
+                calculatedFare = baseFare;
+            }
+
+                
+                // Show route info popup
+                showRouteInfoPopup(route, actualDistance, actualDuration, calculatedFare);
+            }).addTo(map);
+            
+            // Fit map to route
+            const bounds = L.latLngBounds([
+                [origin.lat, origin.lng],
+                [destination.lat, destination.lng]
+            ]);
+            map.fitBounds(bounds, { padding: [50, 50] });
+            
+            // Scroll to map
+            document.getElementById('mapI').scrollIntoView({behavior: 'smooth', block: 'center'});
+        }
+        
+        function showRouteInfoPopup(route, actualDistance, actualDuration, calculatedFare) {
+            // Remove existing popup if any
+            const existingPopup = document.getElementById('routeInfoPopup');
+            if (existingPopup) {
+                existingPopup.remove();
+            }
+            
+            // Create popup
+            const popup = document.createElement('div');
+            popup.id = 'routeInfoPopup';
+            popup.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                padding: 25px;
+                border-radius: 15px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+                z-index: 10000;
+                max-width: 500px;
+                width: 90%;
+            `;
+            
+            const dbDistance = route.distance_km || 'N/A';
+            const dbDuration = route.estimated_time_minutes || 'N/A';
+            const dbFare = route.base_fare || 0;
+            
+            popup.innerHTML = `
+                <div style="text-align: center;">
+                    <h4 style="color: #667eea; margin-bottom: 20px;">
+                        <i class="fas fa-route"></i> ${route.route_name || 'Route Details'}
+                    </h4>
+                    
+                    <div style="text-align: left; margin-bottom: 20px;">
+                        <p style="margin-bottom: 10px;">
+                            <strong><i class="fas fa-map-marker-alt" style="color: #28a745;"></i> From:</strong> ${route.origin_name}
+                        </p>
+                        <p style="margin-bottom: 10px;">
+                            <strong><i class="fas fa-flag-checkered" style="color: #dc3545;"></i> To:</strong> ${route.destination_name}
+                        </p>
+                        <p style="margin-bottom: 10px;">
+                            <strong><i class="fas fa-bus" style="color: #ffc107;"></i> Transport:</strong> ${route.transport_mode.charAt(0).toUpperCase() + route.transport_mode.slice(1)}
+                        </p>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: center;">
+                            <div style="background: white; padding: 10px; border-radius: 8px;">
+                                <div style="font-size: 24px; font-weight: bold; color: #1976d2;">${actualDistance} km</div>
+                                <div style="font-size: 12px; color: #666;">Distance</div>
+                            </div>
+                            <div style="background: white; padding: 10px; border-radius: 8px;">
+                                <div style="font-size: 24px; font-weight: bold; color: #f57c00;">${actualDuration} min</div>
+                                <div style="font-size: 12px; color: #666;">Duration</div>
+                            </div>
+                        </div>
+                        <div style="background: white; padding: 10px; border-radius: 8px; margin-top: 10px;">
+                                                <div style="font-size: 24px; font-weight: bold; color: #388e3c;">PHP ${calculatedFare.toFixed(2)}</div>
+                                                <div style="font-size: 12px; color: #666;">Calculated Fare</div>
+                                                ${['taxi', 'van'].includes(route.transport_mode) 
+                        ? `<div style="font-size: 11px; color: #999; margin-top: 5px;">
+                            Base: PHP ${route.base_fare || 0} + ${route.fare_per_km || 0}/km
+                        </div>` 
+                        : `<div style="font-size: 11px; color: #999; margin-top: 5px;">
+                            Fixed Fare: PHP ${route.base_fare || 0}
+                        </div>`}
+
+                        </div>
+                    </div>
+                    
+                    ${route.description ? `
+                    <div style="background: #e3f2fd; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 13px; text-align: left;">
+                        <strong><i class="fas fa-info-circle"></i> Note:</strong> ${route.description}
+                    </div>
+                    ` : ''}
+                    
+                    <button onclick="document.getElementById('routeInfoPopup').remove()" 
+                            style="background: linear-gradient(135deg, #132365ff 0%, #4b59a3ff 100%); 
+                                   color: white; border: none; padding: 10px 30px; 
+                                   border-radius: 8px; cursor: pointer; font-size: 14px;">
+                        <i class="fas fa-times"></i> Close
+                    </button>
+                </div>
+            `;
+            
+            // Add overlay
+            const overlay = document.createElement('div');
+            overlay.id = 'routeInfoOverlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 9999;
+            `;
+            overlay.onclick = () => {
+                popup.remove();
+                overlay.remove();
+            };
+            
+            document.body.appendChild(overlay);
+            document.body.appendChild(popup);
+        }
+
         function filterRoutes() {
             const destFilter = document.getElementById('destinationFilter').value;
             const transportFilter = document.getElementById('transportFilter').value;
@@ -606,13 +760,17 @@
             document.getElementById('destinationFilter').value = '';
             document.getElementById('transportFilter').value = '';
             displayRoutes(allRoutes);
-        }
-
-        function selectRoute(routeId) {
+            
+            // Clear route from map
+            if (currentRoutingControl) {
+                map.removeControl(currentRoutingControl);
+                currentRoutingControl = null;
+            }
+            
+            // Clear selection
             document.querySelectorAll('.route-card').forEach(card => {
                 card.classList.remove('selected');
             });
-            event.currentTarget.classList.add('selected');
         }
 
         // Back to Top Button
