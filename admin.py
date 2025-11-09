@@ -30,8 +30,9 @@ async def save_upload_file(upload_file: UploadFile, subfolder: str = "destinatio
     
     # Create unique filename
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    extension = Path(upload_file.filename).suffix
-    filename = f"{timestamp}_{upload_file.filename}"
+    filename_str = upload_file.filename if upload_file.filename else "unknown"
+    extension = Path(filename_str).suffix
+    filename = f"{timestamp}_{filename_str}"
     
     # Full path
     upload_dir = UPLOAD_PATH / subfolder
@@ -49,17 +50,17 @@ async def save_upload_file(upload_file: UploadFile, subfolder: str = "destinatio
 @router.get("/dashboard", response_class=HTMLResponse)
 async def admin_dashboard(
     request: Request,
-    current_user = Depends(require_admin),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """Admin Dashboard - Overview Statistics"""
     
     # Statistics
-    total_destinations = db.query(func.count(Destination.id)).scalar()
-    active_destinations = db.query(func.count(Destination.id)).filter(Destination.is_active == True).scalar()
-    total_categories = db.query(func.count(Category.id)).scalar()
-    total_routes = db.query(func.count(Route.id)).scalar()
-    unread_feedback = db.query(func.count(WebsiteFeedback.id)).filter(WebsiteFeedback.is_read == False).scalar()
+    total_destinations = db.query(func.count(Destination.id)).scalar() or 0
+    active_destinations = db.query(func.count(Destination.id)).filter(Destination.is_active.is_(True)).scalar() or 0
+    total_categories = db.query(func.count(Category.id)).scalar() or 0
+    total_routes = db.query(func.count(Route.id)).scalar() or 0
+    unread_feedback = db.query(func.count(WebsiteFeedback.id)).filter(WebsiteFeedback.is_read.is_(False)).scalar() or 0
     
     # Recent destinations
     recent_destinations = db.query(
@@ -86,8 +87,8 @@ async def admin_destinations(
     request: Request,
     search: str = "",
     category: int = 0,
-    success: str = None,
-    current_user = Depends(require_admin),
+    success: Optional[str] = None,
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """Manage Destinations - List View"""
@@ -117,7 +118,7 @@ async def admin_destinations(
     categories = db.query(Category).order_by(Category.name).all()
     
     # Get unread feedback count
-    unread_feedback = db.query(func.count(WebsiteFeedback.id)).filter(WebsiteFeedback.is_read == False).scalar()
+    unread_feedback = db.query(func.count(WebsiteFeedback.id)).filter(WebsiteFeedback.is_read.is_(False)).scalar() or 0
     
     return templates.TemplateResponse("admin/destinations.html", {
         "request": request,
@@ -136,16 +137,16 @@ async def admin_destinations(
 async def add_destination_form(
     request: Request,
     id: Optional[int] = None,
-    success: str = None,
-    error: str = None,
-    current_user = Depends(require_admin),
+    success: Optional[str] = None,
+    error: Optional[str] = None,
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """Add/Edit Destination Form"""
     
     # Check if editing
     destination = None
-    existing_photos = []
+    existing_photos: List[DestinationImage] = []
     
     if id:
         destination = db.query(Destination).filter(Destination.id == id).first()
@@ -161,7 +162,7 @@ async def add_destination_form(
     categories = db.query(Category).order_by(Category.name).all()
     
     # Get unread feedback count
-    unread_feedback = db.query(func.count(WebsiteFeedback.id)).filter(WebsiteFeedback.is_read == False).scalar()
+    unread_feedback = db.query(func.count(WebsiteFeedback.id)).filter(WebsiteFeedback.is_read.is_(False)).scalar() or 0
     
     return templates.TemplateResponse("admin/add_destination.html", {
         "request": request,
@@ -195,15 +196,15 @@ async def save_destination(
     rating: float = Form(0.0),
     is_active: bool = Form(False),
     image: Optional[UploadFile] = File(None),
-    additional_photos: List[UploadFile] = File(None),
-    current_user = Depends(require_admin),
+    additional_photos: Optional[List[UploadFile]] = File(None),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """Save (Create/Update) Destination"""
     
     try:
         # Handle main image upload
-        image_path = None
+        image_path: Optional[str] = None
         if image and image.filename:
             image_path = await save_upload_file(image, "destinations")
         
@@ -213,6 +214,7 @@ async def save_destination(
             if not destination:
                 raise HTTPException(status_code=404, detail="Destination not found")
             
+            # Update fields
             destination.name = name
             destination.category_id = category_id
             destination.description = description
@@ -254,7 +256,7 @@ async def save_destination(
         db.refresh(destination)
         
         # Handle additional photos
-        if additional_photos and additional_photos[0].filename:
+        if additional_photos and len(additional_photos) > 0 and additional_photos[0].filename:
             for photo in additional_photos:
                 if photo.filename:
                     photo_path = await save_upload_file(photo, "destinations")
@@ -281,7 +283,7 @@ async def save_destination(
 @router.get("/destinations/delete/{destination_id}")
 async def delete_destination(
     destination_id: int,
-    current_user = Depends(require_admin),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """Delete Destination"""
@@ -297,14 +299,16 @@ async def delete_destination(
 @router.get("/destinations/toggle/{destination_id}")
 async def toggle_destination(
     destination_id: int,
-    current_user = Depends(require_admin),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """Toggle Destination Active Status"""
     
     destination = db.query(Destination).filter(Destination.id == destination_id).first()
     if destination:
-        destination.is_active = not destination.is_active
+        # Use .is_() for boolean comparison with SQLAlchemy
+        current_status = db.query(Destination.is_active).filter(Destination.id == destination_id).scalar()
+        destination.is_active = not current_status
         db.commit()
     
     return RedirectResponse(url="/admin/destinations?success=toggled", status_code=303)
@@ -313,9 +317,9 @@ async def toggle_destination(
 @router.get("/categories", response_class=HTMLResponse)
 async def admin_categories(
     request: Request,
-    success: str = None,
-    error: str = None,
-    current_user = Depends(require_admin),
+    success: Optional[str] = None,
+    error: Optional[str] = None,
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """Manage Categories"""
@@ -348,7 +352,7 @@ async def admin_categories(
     }
     
     # Get unread feedback count
-    unread_feedback = db.query(func.count(WebsiteFeedback.id)).filter(WebsiteFeedback.is_read == False).scalar()
+    unread_feedback = db.query(func.count(WebsiteFeedback.id)).filter(WebsiteFeedback.is_read.is_(False)).scalar() or 0
     
     return templates.TemplateResponse("admin/categories.html", {
         "request": request,
@@ -367,7 +371,7 @@ async def save_category(
     edit_id: Optional[int] = Form(None),
     name: str = Form(...),
     icon: str = Form(...),
-    current_user = Depends(require_admin),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """Save Category"""
@@ -390,13 +394,13 @@ async def save_category(
 @router.get("/categories/delete/{category_id}")
 async def delete_category(
     category_id: int,
-    current_user = Depends(require_admin),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """Delete Category"""
     
     # Check if category has destinations
-    count = db.query(func.count(Destination.id)).filter(Destination.category_id == category_id).scalar()
+    count = db.query(func.count(Destination.id)).filter(Destination.category_id == category_id).scalar() or 0
     
     if count == 0:
         category = db.query(Category).filter(Category.id == category_id).first()
@@ -411,9 +415,9 @@ async def delete_category(
 @router.get("/users", response_class=HTMLResponse)
 async def admin_users(
     request: Request,
-    success: str = None,
-    error: str = None,
-    current_user = Depends(require_admin),
+    success: Optional[str] = None,
+    error: Optional[str] = None,
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """Manage Users"""
@@ -421,7 +425,7 @@ async def admin_users(
     users = db.query(User).order_by(User.created_at.desc()).all()
     
     # Get unread feedback count
-    unread_feedback = db.query(func.count(WebsiteFeedback.id)).filter(WebsiteFeedback.is_read == False).scalar()
+    unread_feedback = db.query(func.count(WebsiteFeedback.id)).filter(WebsiteFeedback.is_read.is_(False)).scalar() or 0
     
     return templates.TemplateResponse("admin/users.html", {
         "request": request,
@@ -436,7 +440,7 @@ async def admin_users(
 @router.get("/users/toggle/{user_id}")
 async def toggle_user_role(
     user_id: int,
-    current_user = Depends(require_admin),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """Toggle User Role"""
@@ -446,7 +450,7 @@ async def toggle_user_role(
     
     user = db.query(User).filter(User.id == user_id).first()
     if user:
-        user.role = 'user' if user.role == 'admin' else 'admin'
+        user.role = 'user' if user.role == 'admin' else 'admin'  # type: ignore
         db.commit()
     
     return RedirectResponse(url="/admin/users?success=role_updated", status_code=303)
@@ -455,7 +459,7 @@ async def toggle_user_role(
 @router.get("/users/delete/{user_id}")
 async def delete_user(
     user_id: int,
-    current_user = Depends(require_admin),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """Delete User"""

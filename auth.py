@@ -42,7 +42,7 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create JWT access token"""
     to_encode = data.copy()
     if expires_delta:
@@ -68,15 +68,18 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> Optiona
             token = token[7:]
         
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = payload.get("sub")
+        user_id_raw = payload.get("sub")
         
-        if user_id is None:
+        if user_id_raw is None:
             return None
+        
+        # Convert to int safely
+        user_id: int = int(user_id_raw) if isinstance(user_id_raw, (int, str)) else 0
         
         user = db.query(User).filter(User.id == user_id).first()
         return user
     
-    except JWTError:
+    except (JWTError, ValueError, TypeError):
         return None
 
 
@@ -94,7 +97,7 @@ def require_login(request: Request, db: Session = Depends(get_db)) -> User:
 def require_admin(request: Request, db: Session = Depends(get_db)) -> User:
     """Dependency that requires user to be admin"""
     user = require_login(request, db)
-    if user.role != 'admin':
+    if user.role != 'admin':  # type: ignore
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -125,7 +128,18 @@ async def login(
     # Find user
     user = db.query(User).filter(User.username == username).first()
     
-    if not user or not verify_password(password, user.password):
+    # Verify password - get the actual password string from Column
+    if not user:
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": "Invalid username or password",
+            "success": None
+        })
+    
+    # Get the hashed password value
+    stored_password = str(user.password)
+    
+    if not verify_password(password, stored_password):
         return templates.TemplateResponse("login.html", {
             "request": request,
             "error": "Invalid username or password",
@@ -136,7 +150,7 @@ async def login(
     access_token = create_access_token(data={"sub": user.id, "role": user.role})
     
     # Redirect based on role
-    if user.role == 'admin':
+    if user.role == 'admin':  # type: ignore
         response = RedirectResponse(url="/admin/dashboard", status_code=303)
     else:
         response = RedirectResponse(url="/", status_code=303)

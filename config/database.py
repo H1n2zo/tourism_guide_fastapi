@@ -6,9 +6,9 @@ Connects to MySQL/MariaDB via XAMPP
 
 from sqlalchemy import create_engine, Column, Integer, String, Text, DECIMAL, Boolean, DateTime, Enum, text
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session, Mapped, mapped_column
 from datetime import datetime
-from typing import Generator
+from typing import Generator, Optional
 import os
 from pathlib import Path
 
@@ -50,103 +50,103 @@ UPLOAD_PATH.mkdir(exist_ok=True)
 MAP_PROVIDER = "leaflet"
 
 
-# Database Models
+# Database Models with proper type hints
 class User(Base):
     __tablename__ = "users"
     
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(50), unique=True, nullable=False)
-    password = Column(String(255), nullable=False)
-    email = Column(String(100))
-    role = Column(Enum('admin', 'user'), default='user')
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    password: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    role: Mapped[str] = mapped_column(Enum('admin', 'user'), default='user')
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class Category(Base):
     __tablename__ = "categories"
     
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(50), nullable=False)
-    icon = Column(String(50))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    icon: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class Destination(Base):
     __tablename__ = "destinations"
     
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(200), nullable=False)
-    category_id = Column(Integer)
-    description = Column(Text)
-    address = Column(Text)
-    latitude = Column(DECIMAL(10, 8))
-    longitude = Column(DECIMAL(11, 8))
-    contact_number = Column(String(50))
-    email = Column(String(100))
-    website = Column(String(200))
-    opening_hours = Column(String(100))
-    entry_fee = Column(String(100))
-    rating = Column(DECIMAL(2, 1), default=0.0)
-    image_path = Column(String(255))
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    category_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    latitude: Mapped[Optional[float]] = mapped_column(DECIMAL(10, 8), nullable=True)
+    longitude: Mapped[Optional[float]] = mapped_column(DECIMAL(11, 8), nullable=True)
+    contact_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    website: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    opening_hours: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    entry_fee: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    rating: Mapped[Optional[float]] = mapped_column(DECIMAL(2, 1), default=0.0)
+    image_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class DestinationImage(Base):
     __tablename__ = "destination_images"
     
-    id = Column(Integer, primary_key=True, index=True)
-    destination_id = Column(Integer, nullable=False)
-    image_path = Column(String(255), nullable=False)
-    caption = Column(String(200))
-    is_primary = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    destination_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    image_path: Mapped[str] = mapped_column(String(255), nullable=False)
+    caption: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class Review(Base):
     __tablename__ = "reviews"
     
-    id = Column(Integer, primary_key=True, index=True)
-    destination_id = Column(Integer, nullable=False)
-    user_id = Column(Integer)
-    user_name = Column(String(100))
-    rating = Column(Integer, nullable=False)
-    comment = Column(Text)
-    is_approved = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    destination_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    user_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    user_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_approved: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class Route(Base):
     __tablename__ = "routes"
     
-    id = Column(Integer, primary_key=True, index=True)
-    route_name = Column(String(200))
-    origin_id = Column(Integer)
-    destination_id = Column(Integer)
-    transport_mode = Column(Enum('jeepney', 'taxi', 'bus', 'van', 'tricycle', 'walking'), nullable=False)
-    distance_km = Column(DECIMAL(6, 2))
-    estimated_time_minutes = Column(Integer)
-    base_fare = Column(DECIMAL(8, 2))
-    fare_per_km = Column(DECIMAL(8, 2))
-    description = Column(Text)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    route_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    origin_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    destination_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    transport_mode: Mapped[str] = mapped_column(Enum('jeepney', 'taxi', 'bus', 'van', 'tricycle', 'walking'), nullable=False)
+    distance_km: Mapped[Optional[float]] = mapped_column(DECIMAL(6, 2), nullable=True)
+    estimated_time_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    base_fare: Mapped[Optional[float]] = mapped_column(DECIMAL(8, 2), nullable=True)
+    fare_per_km: Mapped[Optional[float]] = mapped_column(DECIMAL(8, 2), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class WebsiteFeedback(Base):
     __tablename__ = "website_feedback"
     
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer)
-    user_name = Column(String(100))
-    email = Column(String(100))
-    rating = Column(Integer, nullable=False)
-    category = Column(Enum('usability', 'features', 'content', 'design', 'general'), default='general')
-    feedback = Column(Text, nullable=False)
-    is_public = Column(Boolean, default=True)
-    is_read = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    user_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    category: Mapped[str] = mapped_column(Enum('usability', 'features', 'content', 'design', 'general'), default='general')
+    feedback: Mapped[str] = mapped_column(Text, nullable=False)
+    is_public: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 # Dependency to get database session
