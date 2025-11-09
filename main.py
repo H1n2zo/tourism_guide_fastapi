@@ -1,7 +1,7 @@
-# main.py - UPDATED VERSION
+# main.py - UPDATED VERSION with Routes API
 """
 FastAPI Tourism Guide System - Main Application
-Complete version with all features
+Complete version with all features including routes
 """
 
 from fastapi import FastAPI, Request, Depends, Query
@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 
 from config.database import (
-    get_db, Destination, Category, Review, UPLOAD_URL, 
+    get_db, Destination, Category, Review, Route, UPLOAD_URL, 
     create_tables, test_connection
 )
 
@@ -77,9 +77,9 @@ async def index(
     current_user = get_current_user(request, db)
     
     # Statistics
-    total_destinations = db.query(func.count(Destination.id)).filter(Destination.is_active == True).scalar()
-    total_reviews = db.query(func.count(Review.id)).filter(Review.is_approved == True).scalar()
-    total_categories = db.query(func.count(Category.id)).scalar()
+    total_destinations = db.query(func.count(Destination.id)).filter(Destination.is_active.is_(True)).scalar() or 0
+    total_reviews = db.query(func.count(Review.id)).filter(Review.is_approved.is_(True)).scalar() or 0
+    total_categories = db.query(func.count(Category.id)).scalar() or 0
     
     # Categories
     categories = db.query(Category).order_by(Category.name).all()
@@ -94,9 +94,9 @@ async def index(
     ).outerjoin(
         Category, Destination.category_id == Category.id
     ).outerjoin(
-        Review, (Destination.id == Review.destination_id) & (Review.is_approved == True)
+        Review, (Destination.id == Review.destination_id) & (Review.is_approved.is_(True))
     ).filter(
-        Destination.is_active == True
+        Destination.is_active.is_(True)
     )
     
     if category and category > 0:
@@ -128,7 +128,7 @@ async def index(
         })
     
     all_destinations = db.query(Destination.id, Destination.name).filter(
-        Destination.is_active == True
+        Destination.is_active.is_(True)
     ).order_by(Destination.name).all()
     
     return templates.TemplateResponse("index.html", {
@@ -163,9 +163,9 @@ async def get_destinations_api(
     ).outerjoin(
         Category, Destination.category_id == Category.id
     ).outerjoin(
-        Review, (Destination.id == Review.destination_id) & (Review.is_approved == True)
+        Review, (Destination.id == Review.destination_id) & (Review.is_approved.is_(True))
     ).filter(
-        Destination.is_active == True
+        Destination.is_active.is_(True)
     )
     
     if category and category > 0:
@@ -196,6 +196,47 @@ async def get_destinations_api(
         })
     
     return {"destinations": destinations}
+
+
+@app.get("/api/routes")
+async def get_routes_api(db: Session = Depends(get_db)):
+    """API endpoint for transportation routes"""
+    
+    # Query routes with origin and destination names
+    routes_query = db.query(
+        Route,
+        Destination.name.label('origin_name'),
+    ).outerjoin(
+        Destination, Route.origin_id == Destination.id
+    ).filter(
+        Route.is_active.is_(True)
+    ).all()
+    
+    routes = []
+    for route, origin_name in routes_query:
+        # Get destination name separately
+        dest_name = None
+        if route.destination_id:
+            dest = db.query(Destination.name).filter(Destination.id == route.destination_id).first()
+            if dest:
+                dest_name = dest[0]
+        
+        routes.append({
+            'id': route.id,
+            'route_name': route.route_name,
+            'origin_id': route.origin_id,
+            'origin_name': origin_name,
+            'destination_id': route.destination_id,
+            'destination_name': dest_name,
+            'transport_mode': route.transport_mode,
+            'distance_km': float(route.distance_km) if route.distance_km else None,
+            'estimated_time_minutes': route.estimated_time_minutes,
+            'base_fare': float(route.base_fare) if route.base_fare else 0,
+            'fare_per_km': float(route.fare_per_km) if route.fare_per_km else 0,
+            'description': route.description
+        })
+    
+    return {"routes": routes}
 
 
 @app.get("/health")
