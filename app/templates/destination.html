@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+
+{% block title %}Destination - Tourism Guide{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/css/lightbox.min.css">
+<style>
+    .hero-image {
+        height: 500px;
+        background-size: cover;
+        background-position: center;
+        position: relative;
+    }
+    
+    .hero-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+        color: white;
+        padding: 40px;
+    }
+    
+    .info-card {
+        border-left: 4px solid #667eea;
+        background: #f8f9fa;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .rating {
+        color: #ffc107;
+        font-size: 1.2rem;
+    }
+    
+    #map {
+        height: 400px;
+        border-radius: 10px;
+    }
+    
+    .gallery-img {
+        height: 150px;
+        object-fit: cover;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: transform 0.3s;
+    }
+    
+    .gallery-img:hover {
+        transform: scale(1.05);
+    }
+    
+    .review-card {
+        border-left: 4px solid #28a745;
+        background: #f8f9fa;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 5px;
+    }
+    
+    .star-rating {
+        display: flex;
+        gap: 5px;
+        font-size: 2rem;
+        cursor: pointer;
+        justify-content: center;
+    }
+    
+    .star-rating i {
+        color: #ddd;
+        transition: color 0.2s;
+    }
+    
+    .star-rating i.active,
+    .star-rating i:hover,
+    .star-rating i:hover ~ i {
+        color: #ffc107;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="destinationContent">
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</div>
+
+<!-- Review Modal -->
+<div class="modal fade" id="reviewModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Write a Review</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="reviewForm">
+                    <div class="mb-3">
+                        <label class="form-label">Your Name *</label>
+                        <input type="text" class="form-control" id="reviewName" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Rating *</label>
+                        <div class="star-rating" id="starRating">
+                            <i class="far fa-star" data-rating="1"></i>
+                            <i class="far fa-star" data-rating="2"></i>
+                            <i class="far fa-star" data-rating="3"></i>
+                            <i class="far fa-star" data-rating="4"></i>
+                            <i class="far fa-star" data-rating="5"></i>
+                        </div>
+                        <input type="hidden" id="rating" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Your Review *</label>
+                        <textarea class="form-control" id="comment" rows="4" required></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> Submit Review
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/js/lightbox.min.js"></script>
+<script>
+const destinationId = {{ destination_id }};
+let destination = null;
+
+async function loadDestination() {
+    try {
+        const response = await fetch(`${API_URL}/destinations/${destinationId}`);
+        if (!response.ok) {
+            throw new Error('Destination not found');
+        }
+        
+        destination = await response.json();
+        renderDestination();
+        loadReviews();
+        
+        if (destination.latitude && destination.longitude) {
+            initializeMap();
+        }
+    } catch (error) {
+        console.error('Error loading destination:', error);
+        document.getElementById('destinationContent').innerHTML = `
+            <div class="container text-center py-5">
+                <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+                <h3>Destination Not Found</h3>
+                <p>The destination you're looking for doesn't exist.</p>
+                <a href="/" class="btn btn-primary">Go to Homepage</a>
+            </div>
+        `;
+    }
+}
+
+function renderDestination() {
+    const image = destination.image_path ? `/uploads/${destination.image_path}` : 'https://via.placeholder.com/800x400';
+    
+    document.getElementById('destinationContent').innerHTML = `
+        <!-- Hero Section -->
+        <div class="hero-image" style="background-image: url('${image}');">
+            <div class="hero-overlay">
+                <div class="container">
+                    <span class="badge bg-primary mb-2">
+                        <i class="fas ${destination.category?.icon || 'fa-map-pin'}"></i> 
+                        ${destination.category?.name || 'Uncategorized'}
+                    </span>
+                    <h1 class="display-4 fw-bold">${destination.name}</h1>
+                    ${destination.review_count > 0 ? `
+                        <div class="rating mb-2">
+                            ${'★'.repeat(Math.round(destination.avg_rating))}${'☆'.repeat(5-Math.round(destination.avg_rating))}
+                            <span class="ms-2">${destination.avg_rating.toFixed(1)} / 5</span>
+                            <span class="ms-2">(${destination.review_count} reviews)</span>
+                        </div>
+                    ` : ''}
+                    <p class="lead"><i class="fas fa-map-marker-alt"></i> ${destination.address || 'Address not available'}</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="container my-5">
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- Description -->
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h3 class="card-title"><i class="fas fa-info-circle"></i> About This Place</h3>
+                            <p class="card-text">${destination.description || 'No description available.'}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Gallery -->
+                    ${destination.images && destination.images.length > 0 ? `
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h3 class="card-title"><i class="fas fa-images"></i> Photo Gallery</h3>
+                                <div class="row g-2">
+                                    ${destination.images.map(img => `
+                                        <div class="col-md-4">
+                                            <a href="/uploads/${img.image_path}" data-lightbox="gallery" data-title="${img.caption || ''}">
+                                                <img src="/uploads/${img.image_path}" class="img-fluid gallery-img" alt="${img.caption || ''}">
+                                            </a>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    <!-- Map -->
+                    ${destination.latitude && destination.longitude ? `
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h3 class="card-title"><i class="fas fa-map"></i> Location</h3>
+                                <div id="map"></div>
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    <!-- Reviews Section -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h4 class="mb-0"><i class="fas fa-comments"></i> Reviews & Ratings</h4>
+                        </div>
+                        <div class="card-body">
+                            <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#reviewModal">
+                                <i class="fas fa-pen"></i> Write a Review
+                            </button>
+                            <div id="reviewsList">
+                                <div class="text-center">
+                                    <div class="spinner-border text-primary"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sidebar -->
+                <div class="col-lg-4">
+                    <!-- Quick Info -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-clipboard-list"></i> Quick Information</h5>
+                        </div>
+                        <div class="card-body">
+                            ${destination.opening_hours ? `
+                                <div class="info-card">
+                                    <h6><i class="fas fa-clock"></i> Opening Hours</h6>
+                                    <p class="mb-0">${destination.opening_hours}</p>
+                                </div>
+                            ` : ''}
+                            ${destination.entry_fee ? `
+                                <div class="info-card">
+                                    <h6><i class="fas fa-ticket-alt"></i> Entry Fee</h6>
+                                    <p class="mb-0">${destination.entry_fee}</p>
+                                </div>
+                            ` : ''}
+                            ${destination.contact_number ? `
+                                <div class="info-card">
+                                    <h6><i class="fas fa-phone"></i> Contact</h6>
+                                    <p class="mb-0">${destination.contact_number}</p>
+                                </div>
+                            ` : ''}
+                            ${destination.email ? `
+                                <div class="info-card">
+                                    <h6><i class="fas fa-envelope"></i> Email</h6>
+                                    <p class="mb-0">${destination.email}</p>
+                                </div>
+                            ` : ''}
+                            ${destination.website ? `
+                                <div class="info-card">
+                                    <h6><i class="fas fa-globe"></i> Website</h6>
+                                    <p class="mb-0"><a href="${destination.website}" target="_blank">Visit Website</a></p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="card">
+                        <div class="card-body">
+                            <h5><i class="fas fa-map-marked-alt"></i> Plan Your Visit</h5>
+                            <a href="/#routes" class="btn btn-primary w-100 mb-2">
+                                <i class="fas fa-route"></i> Find Route Here
+                            </a>
+                            <a href="/#destinations" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-compass"></i> Explore More Places
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+async function loadReviews() {
+    try {
+        const response = await fetch(`${API_URL}/reviews/destination/${destinationId}`);
+        const reviews = await response.json();
+        
+        const reviewsList = document.getElementById('reviewsList');
+        
+        if (reviews.length === 0) {
+            reviewsList.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No reviews yet. Be the first to share your experience!
+                </div>
+            `;
+            return;
+        }
+        
+        reviewsList.innerHTML = reviews.map(review => `
+            <div class="review-card">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h6 class="mb-1"><i class="fas fa-user-circle"></i> ${review.user_name}</h6>
+                        <div style="color: #ffc107;">
+                            ${'★'.repeat(review.rating)}${'☆'.repeat(5-review.rating)}
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        <i class="fas fa-clock"></i> ${new Date(review.created_at).toLocaleDateString()}
+                    </small>
+                </div>
+                <p class="mb-0">${review.comment}</p>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading reviews:', error);
+    }
+}
+
+function initializeMap() {
+    const map = L.map('map').setView([destination.latitude, destination.longitude], 15);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(map);
+    
+    L.marker([destination.latitude, destination.longitude])
+        .addTo(map)
+        .bindPopup(`<h6>${destination.name}</h6><p>${destination.address}</p>`)
+        .openPopup();
+}
+
+// Star rating functionality
+document.addEventListener('DOMContentLoaded', () => {
+    loadDestination();
+    
+    const stars = document.querySelectorAll('#starRating i');
+    const ratingInput = document.getElementById('rating');
+    
+    stars.forEach(star => {
+        star.addEventListener('click', function() {
+            const rating = this.getAttribute('data-rating');
+            ratingInput.value = rating;
+            
+            stars.forEach((s, index) => {
+                if (index < rating) {
+                    s.classList.remove('far');
+                    s.classList.add('fas', 'active');
+                } else {
+                    s.classList.remove('fas', 'active');
+                    s.classList.add('far');
+                }
+            });
+        });
+        
+        star.addEventListener('mouseenter', function() {
+            const rating = this.getAttribute('data-rating');
+            stars.forEach((s, index) => {
+                if (index < rating) {
+                    s.classList.add('active');
+                } else {
+                    s.classList.remove('active');
+                }
+            });
+        });
+    });
+    
+    document.getElementById('starRating').addEventListener('mouseleave', function() {
+        const currentRating = ratingInput.value;
+        stars.forEach((s, index) => {
+            if (currentRating && index < currentRating) {
+                s.classList.add('active');
+            } else {
+                s.classList.remove('active');
+            }
+        });
+    });
+    
+    // Handle review form submission
+    document.getElementById('reviewForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const reviewData = {
+            destination_id: destinationId,
+            user_name: document.getElementById('reviewName').value,
+            rating: parseInt(document.getElementById('rating').value),
+            comment: document.getElementById('comment').value
+        };
+        
+        if (!reviewData.rating) {
+            showAlert('Please select a rating', 'warning');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${API_URL}/reviews/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(getToken() ? {'Authorization': `Bearer ${getToken()}`} : {})
+                },
+                body: JSON.stringify(reviewData)
+            });
+            
+            if (response.ok) {
+                showAlert('Review submitted successfully!', 'success');
+                document.getElementById('reviewForm').reset();
+                document.querySelectorAll('#starRating i').forEach(s => {
+                    s.classList.remove('fas', 'active');
+                    s.classList.add('far');
+                });
+                bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
+                loadReviews();
+                loadDestination(); // Reload to update average rating
+            } else {
+                showAlert('Error submitting review', 'danger');
+            }
+        } catch (error) {
+            console.error('Error submitting review:', error);
+            showAlert('Error submitting review', 'danger');
+        }
+    });
+});
+</script>
+{% endblock %}
