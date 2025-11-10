@@ -7,7 +7,8 @@ from app.config import settings
 from app.database import engine, Base
 
 # Import routers
-from app.routers import auth, destinations, reviews, routes_api, feedback
+
+from app.routers import auth, destinations, reviews, routes_api, feedback, admin
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
