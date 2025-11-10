@@ -68,6 +68,37 @@ async def feedback_page(request: Request):
     """Feedback page"""
     return templates.TemplateResponse("feedback.html", {"request": request})
 
+# Admin panel routes
+@app.get("/admin/dashboard", response_class=HTMLResponse)
+async def admin_dashboard(request: Request):
+    """Admin dashboard"""
+    return templates.TemplateResponse("admin/dashboard.html", {"request": request})
+
+@app.get("/admin/destinations", response_class=HTMLResponse)
+async def admin_destinations(request: Request):
+    """Admin destinations management"""
+    return templates.TemplateResponse("admin/destinations.html", {"request": request})
+
+@app.get("/admin/categories", response_class=HTMLResponse)
+async def admin_categories(request: Request):
+    """Admin categories management"""
+    return templates.TemplateResponse("admin/categories.html", {"request": request})
+
+@app.get("/admin/routes", response_class=HTMLResponse)
+async def admin_routes(request: Request):
+    """Admin routes management"""
+    return templates.TemplateResponse("admin/routes.html", {"request": request})
+
+@app.get("/admin/reviews", response_class=HTMLResponse)
+async def admin_reviews(request: Request):
+    """Admin reviews and feedback management"""
+    return templates.TemplateResponse("admin/reviews.html", {"request": request})
+
+@app.get("/admin/users", response_class=HTMLResponse)
+async def admin_users(request: Request):
+    """Admin users management"""
+    return templates.TemplateResponse("admin/users.html", {"request": request})
+
 # Health check
 @app.get("/health")
 async def health_check():
