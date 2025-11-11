@@ -13,4 +13,5 @@ Argument of type "ColumnElement[_NUMERIC] | float" cannot be assigned to paramet
 Property assignment expected.
 Declaration or statement expected.
 
+# Why is the data not showing up tourism_guide
 
