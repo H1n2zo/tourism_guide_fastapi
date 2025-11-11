@@ -132,7 +132,7 @@ function displayDestination() {
             <div class="hero-overlay">
                 <div class="container">
                     <span class="badge bg-primary mb-2">
-                        <i class="fas ${destinationData.category_icon}"></i> ${destinationData.category_name}
+                        <i class="fas ${destinationData.category_icon || 'fa-map-marker-alt'}"></i> ${destinationData.category_name || 'Category'}
                     </span>
                     <h1 class="display-4 fw-bold">${destinationData.name}</h1>
                     ${ratingHtml}

@@ -8,9 +8,9 @@ Argument of type "ColumnElement[_NUMERIC] | float" cannot be assigned to paramet
   Type "ColumnElement[_NUMERIC] | float" is not assignable to type "_SupportsRound2[float]"
     "ColumnElement[_NUMERIC]" is incompatible with protocol "_SupportsRound2[float]"
       "__round__" is not present
-Invalid conditional operand of type "ColumnElement[_NUMERIC] | float"
-  Method __bool__ for type "ColumnElement[_NUMERIC]" returns type "NoReturn" rather than "bool"
 
 # destinations.html app\templates
-Property assignment expected. javascript [Ln 85, Col 22]
-Declaration or statement expected. javascript [Ln 85, Col 40]
+Property assignment expected.
+Declaration or statement expected.
+
+

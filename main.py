@@ -55,7 +55,7 @@ async def home(request: Request):
 async def destination_detail(request: Request, destination_id: int):
     """Destination detail page"""
     return templates.TemplateResponse(
-        "destination.html", 
+        "destinations.html", 
         {"request": request, "destination_id": destination_id}
     )
 
