@@ -4,7 +4,7 @@ import os
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "mysql+pymysql://root:@localhost/tourism_guide_fastapi"
+    DATABASE_URL: str = "mysql+pymysql://root:@localhost/tourism_guide"
     
     # Security
     SECRET_KEY: str = "your-secret-key-change-in-production-09af9s0d8f7asd098f7a"
