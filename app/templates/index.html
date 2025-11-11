@@ -1,0 +1,522 @@
+{% extends "base.html" %}
+
+{% block title %}Tourism Guide - Explore Ormoc City{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section" id="home">
+    <div class="container text-center">
+        <h1 class="display-3 fw-bold mb-3">Discover Amazing Places</h1>
+        <p class="lead mb-4">Explore tourist destinations, find routes, and plan your journey</p>
+        <a href="#destinations" class="btn btn-light btn-lg">
+            <i class="fas fa-compass"></i> Start Exploring
+        </a>
+        
+        <!-- Statistics Row -->
+        <div class="stats-row" id="statsContainer">
+            <div class="stat-item">
+                <h3 id="totalDestinations">0</h3>
+                <p>Destinations</p>
+            </div>
+            <div class="stat-item">
+                <h3 id="totalReviews">0</h3>
+                <p>Reviews</p>
+            </div>
+            <div class="stat-item">
+                <h3 id="totalCategories">0</h3>
+                <p>Categories</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Search and Filter Section -->
+<div class="container">
+    <div class="search-box">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="searchInput" 
+                           placeholder="Search destinations..." 
+                           autocomplete="off">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <select class="form-select" id="categoryFilter">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-primary w-100" onclick="applyFilters()">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Destinations Grid -->
+<div class="container mt-5" id="destinations">
+    <h2 class="mb-4"><i class="fas fa-map-pin"></i> Featured Destinations</h2>
+    <div class="row g-4" id="destinationsGrid">
+        <!-- Destinations will be loaded here -->
+    </div>
+    
+    <!-- Pagination -->
+    <nav aria-label="Destination pagination" class="mt-4">
+        <ul class="pagination justify-content-center" id="pagination">
+        </ul>
+    </nav>
+</div>
+
+<!-- Map Section with Route Finder -->
+<div class="container mt-5" id="routes">
+    <h2 class="mb-4"><i class="fas fa-map"></i> Interactive Map & Route Finder</h2>
+    
+    <div class="route-panel">
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <h5 class="mb-3"><i class="fas fa-filter"></i> Filter Routes</h5>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Filter by Origin</label>
+                <select class="form-select" id="filterOrigin" onchange="filterRoutes()">
+                    <option value="">All Origins</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Filter by Destination</label>
+                <select class="form-select" id="filterDestination" onchange="filterRoutes()">
+                    <option value="">All Destinations</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Filter by Transport</label>
+                <select class="form-select" id="filterTransport" onchange="filterRoutes()">
+                    <option value="">All Transport Modes</option>
+                    <option value="jeepney">Jeepney</option>
+                    <option value="taxi">Taxi</option>
+                    <option value="bus">Bus</option>
+                    <option value="van">Van</option>
+                    <option value="tricycle">Tricycle</option>
+                    <option value="walking">Walking</option>
+                </select>
+            </div>
+        </div>
+
+        <hr class="my-4">
+        
+        <h5 class="mb-4"><i class="fas fa-route"></i> Available Routes</h5>
+        
+        <div id="routesContainer">
+            <!-- Routes will be loaded here -->
+        </div>
+    </div>
+    
+    <div style="position: relative;">
+        <button class="clear-route-btn" id="clearRouteBtn" onclick="clearRoute()">
+            <i class="fas fa-times-circle"></i> Clear Route
+        </button>
+        <div id="map"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1;
+let currentSearch = '';
+let currentCategory = '';
+let allDestinations = [];
+let allRoutes = [];
+let map, routingControl, selectedRouteData = null;
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadStats();
+    loadCategories();
+    loadDestinations();
+    loadRoutes();
+    initMap();
+});
+
+// Load statistics
+async function loadStats() {
+    try {
+        const response = await fetch('/api/destinations/stats/summary');
+        const data = await response.json();
+        document.getElementById('totalDestinations').textContent = data.total_destinations;
+        document.getElementById('totalReviews').textContent = data.total_reviews;
+        document.getElementById('totalCategories').textContent = data.total_categories;
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
+}
+
+// Load categories
+async function loadCategories() {
+    try {
+        const response = await fetch('/api/categories/');
+        const categories = await response.json();
+        
+        const categoryFilter = document.getElementById('categoryFilter');
+        categories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.id;
+            option.textContent = cat.name;
+            categoryFilter.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading categories:', error);
+    }
+}
+
+// Load destinations
+async function loadDestinations(page = 1) {
+    try {
+        const params = new URLSearchParams({
+            page: page,
+            page_size: 12
+        });
+        
+        if (currentSearch) params.append('search', currentSearch);
+        if (currentCategory) params.append('category_id', currentCategory);
+        
+        const response = await fetch(`/api/destinations/?${params}`);
+        const data = await response.json();
+        
+        allDestinations = data.destinations;
+        displayDestinations(data.destinations);
+        displayPagination(data);
+        
+    } catch (error) {
+        console.error('Error loading destinations:', error);
+    }
+}
+
+// Display destinations
+function displayDestinations(destinations) {
+    const grid = document.getElementById('destinationsGrid');
+    grid.innerHTML = '';
+    
+    if (destinations.length === 0) {
+        grid.innerHTML = `
+            <div class="col-12">
+                <div class="empty-state">
+                    <i class="fas fa-search"></i>
+                    <h3>No destinations found</h3>
+                    <p class="text-muted">Try adjusting your search or filter criteria</p>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    destinations.forEach(dest => {
+        const imageUrl = dest.image_path ? `/uploads/${dest.image_path}` : `https://via.placeholder.com/400x300?text=${encodeURIComponent(dest.name)}`;
+        
+        const ratingHtml = dest.review_count > 0 && dest.avg_rating ? `
+            <div class="rating">
+                ${'★'.repeat(Math.round(dest.avg_rating))}${'☆'.repeat(5 - Math.round(dest.avg_rating))}
+            </div>
+            <small class="rating-text">${dest.avg_rating.toFixed(1)} / 5 (${dest.review_count} reviews)</small>
+        ` : `<div class="not-rated"><i class="far fa-star"></i> Not rated yet</div>`;
+        
+        const card = `
+            <div class="col-md-4">
+                <div class="card destination-card">
+                    <div class="position-relative">
+                        <img src="${imageUrl}" class="card-img-top" alt="${dest.name}" loading="lazy">
+                        <span class="category-badge">
+                            <i class="fas ${dest.category_icon}"></i> ${dest.category_name}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">${dest.name}</h5>
+                        <p class="card-text">${dest.description ? dest.description.substring(0, 100) + '...' : ''}</p>
+                        <div class="mb-2">${ratingHtml}</div>
+                        <a href="/destination/${dest.id}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-info-circle"></i> View Details
+                        </a>
+                        ${dest.latitude && dest.longitude ? `
+                        <button class="btn btn-outline-primary btn-sm" onclick="showOnMap(${dest.latitude}, ${dest.longitude})">
+                            <i class="fas fa-map-marker-alt"></i> Show on Map
+                        </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+        grid.innerHTML += card;
+    });
+}
+
+// Display pagination
+function displayPagination(data) {
+    const pagination = document.getElementById('pagination');
+    pagination.innerHTML = '';
+    
+    if (data.total_pages <= 1) return;
+    
+    for (let i = 1; i <= data.total_pages; i++) {
+        const li = document.createElement('li');
+        li.className = `page-item ${i === data.page ? 'active' : ''}`;
+        li.innerHTML = `<a class="page-link" href="#" onclick="loadDestinations(${i}); return false;">${i}</a>`;
+        pagination.appendChild(li);
+    }
+}
+
+// Apply filters
+function applyFilters() {
+    currentSearch = document.getElementById('searchInput').value;
+    currentCategory = document.getElementById('categoryFilter').value;
+    loadDestinations(1);
+}
+
+// Load routes
+async function loadRoutes() {
+    try {
+        const response = await fetch('/api/routes/');
+        allRoutes = await response.json();
+        displayRoutes(allRoutes);
+        populateRouteFilters(allRoutes);
+    } catch (error) {
+        console.error('Error loading routes:', error);
+    }
+}
+
+// Display routes
+function displayRoutes(routes) {
+    const container = document.getElementById('routesContainer');
+    container.innerHTML = '';
+    
+    if (routes.length === 0) {
+        container.innerHTML = `
+            <div class="no-routes-message">
+                <i class="fas fa-route"></i>
+                <h5>No Routes Available</h5>
+                <p>Routes will be displayed here once administrators add them.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    routes.forEach(route => {
+        const totalFare = route.total_fare ? `₱${parseFloat(route.total_fare).toFixed(2)}` : 'N/A';
+        const routeName = route.route_name || `${route.origin_name} to ${route.destination_name}`;
+        
+        const card = `
+            <div class="route-card" onclick='selectRoute(${JSON.stringify(route)})' 
+                 data-route-id="${route.id}"
+                 data-origin-id="${route.origin_id}"
+                 data-destination-id="${route.destination_id}"
+                 data-transport="${route.transport_mode}">
+                <div class="route-header">
+                    <h6 class="route-title">${routeName}</h6>
+                    <span class="transport-badge transport-${route.transport_mode}">
+                        <i class="fas fa-bus"></i> ${route.transport_mode.charAt(0).toUpperCase() + route.transport_mode.slice(1)}
+                    </span>
+                </div>
+                
+                <div class="route-locations">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>${route.origin_name}</span>
+                    <span class="route-arrow"><i class="fas fa-arrow-right"></i></span>
+                    <span>${route.destination_name}</span>
+                </div>
+                
+                <div class="route-details">
+                    ${route.distance_km ? `
+                    <div class="route-detail-item">
+                        <i class="fas fa-road"></i>
+                        <div>
+                            <span class="detail-label">Distance</span>
+                            <span class="detail-value">${parseFloat(route.distance_km).toFixed(1)} km</span>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    ${route.estimated_time_minutes ? `
+                    <div class="route-detail-item">
+                        <i class="fas fa-clock"></i>
+                        <div>
+                            <span class="detail-label">Duration</span>
+                            <span class="detail-value">${route.estimated_time_minutes} min</span>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="route-detail-item">
+                        <i class="fas fa-peso-sign"></i>
+                        <div>
+                            <span class="detail-label">Fare</span>
+                            <span class="detail-value">${totalFare}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                ${route.description ? `
+                <div class="route-description">
+                    <i class="fas fa-info-circle"></i> ${route.description}
+                </div>
+                ` : ''}
+            </div>
+        `;
+        container.innerHTML += card;
+    });
+}
+
+// Populate route filter dropdowns
+function populateRouteFilters(routes) {
+    const origins = new Set();
+    const destinations = new Set();
+    
+    routes.forEach(route => {
+        if (route.origin_id && route.origin_name) {
+            origins.add(JSON.stringify({id: route.origin_id, name: route.origin_name}));
+        }
+        if (route.destination_id && route.destination_name) {
+            destinations.add(JSON.stringify({id: route.destination_id, name: route.destination_name}));
+        }
+    });
+    
+    const originSelect = document.getElementById('filterOrigin');
+    origins.forEach(item => {
+        const {id, name} = JSON.parse(item);
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = name;
+        originSelect.appendChild(option);
+    });
+    
+    const destSelect = document.getElementById('filterDestination');
+    destinations.forEach(item => {
+        const {id, name} = JSON.parse(item);
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = name;
+        destSelect.appendChild(option);
+    });
+}
+
+// Filter routes
+function filterRoutes() {
+    const originFilter = document.getElementById('filterOrigin').value;
+    const destinationFilter = document.getElementById('filterDestination').value;
+    const transportFilter = document.getElementById('filterTransport').value;
+    
+    const filtered = allRoutes.filter(route => {
+        const matchOrigin = !originFilter || route.origin_id == originFilter;
+        const matchDest = !destinationFilter || route.destination_id == destinationFilter;
+        const matchTransport = !transportFilter || route.transport_mode === transportFilter;
+        return matchOrigin && matchDest && matchTransport;
+    });
+    
+    displayRoutes(filtered);
+}
+
+// Initialize Leaflet map
+function initMap() {
+    map = L.map('map').setView([11.0059, 124.6075], 13);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(map);
+    
+    // Add destination markers
+    allDestinations.forEach(dest => {
+        if (dest.latitude && dest.longitude) {
+            const marker = L.marker([parseFloat(dest.latitude), parseFloat(dest.longitude)]).addTo(map);
+            
+            const ratingHtml = dest.review_count > 0 ? 
+                `${'★'.repeat(Math.round(dest.avg_rating))}${'☆'.repeat(5-Math.round(dest.avg_rating))} ${dest.avg_rating.toFixed(1)}` :
+                'Not rated';
+            
+            marker.bindPopup(`
+                <div>
+                    ${dest.image_path ? `<img src="/uploads/${dest.image_path}" style="width:100%;height:120px;object-fit:cover;border-radius:5px;margin-bottom:8px;">` : ''}
+                    <h6>${dest.name}</h6>
+                    <p><i class="fas ${dest.category_icon}"></i> ${dest.category_name}</p>
+                    <div style="color:#ffc107;">${ratingHtml}</div>
+                    <a href="/destination/${dest.id}" class="btn btn-sm btn-primary mt-2">View Details</a>
+                </div>
+            `);
+        }
+    });
+}
+
+// Show destination on map
+function showOnMap(lat, lng) {
+    map.setView([parseFloat(lat), parseFloat(lng)], 15);
+    document.getElementById('routes').scrollIntoView({behavior: 'smooth'});
+}
+
+// Select and display route
+function selectRoute(routeData) {
+    document.querySelectorAll('.route-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    event.currentTarget.classList.add('selected');
+    
+    selectedRouteData = routeData;
+    showRouteOnMap();
+}
+
+// Show route on map
+function showRouteOnMap() {
+    if (!selectedRouteData) return;
+    
+    if (routingControl) {
+        map.removeControl(routingControl);
+    }
+    
+    map.eachLayer(layer => {
+        if (layer instanceof L.Polyline && !(layer instanceof L.Marker)) {
+            map.removeLayer(layer);
+        }
+    });
+    
+    const startLat = parseFloat(selectedRouteData.origin_lat);
+    const startLng = parseFloat(selectedRouteData.origin_lng);
+    const endLat = parseFloat(selectedRouteData.dest_lat);
+    const endLng = parseFloat(selectedRouteData.dest_lng);
+    
+    // Draw simple polyline
+    L.polyline([[startLat, startLng], [endLat, endLng]], {
+        color: '#ffc107',
+        weight: 6,
+        opacity: 0.8,
+        dashArray: '10, 10'
+    }).addTo(map);
+    
+    document.getElementById('clearRouteBtn').classList.add('show');
+    
+    const bounds = L.latLngBounds([startLat, startLng], [endLat, endLng]);
+    map.fitBounds(bounds, {padding: [80, 80]});
+}
+
+// Clear route
+function clearRoute() {
+    if (routingControl) {
+        map.removeControl(routingControl);
+        routingControl = null;
+    }
+    
+    map.eachLayer(layer => {
+        if (layer instanceof L.Polyline && !(layer instanceof L.Marker)) {
+            map.removeLayer(layer);
+        }
+    });
+    
+    document.querySelectorAll('.route-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    
+    document.getElementById('clearRouteBtn').classList.remove('show');
+    selectedRouteData = null;
+    map.setView([11.0059, 124.6075], 13);
+}
+</script>
+{% endblock %}
