@@ -1,7 +1,6 @@
-# app/api/endpoints/reviews.py - Review API Endpoints
+# app/api/endpoints/reviews.py - Review API Endpoints (FIXED)
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from typing import List
 from app.database import get_db
 from app.models.review import Review
@@ -70,14 +69,16 @@ def get_review_stats(destination_id: int, db: Session = Depends(get_db)):
     total = len(reviews)
     avg_rating = sum(r.rating for r in reviews) / total
     
+    # Count ratings by star level
     rating_counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
     for review in reviews:
-        rating_counts[review.rating] += 1
+        if review.rating in rating_counts:
+            rating_counts[review.rating] += 1
     
     return ReviewStats(
         destination_id=destination_id,
         total_reviews=total,
-        average_rating=round(avg_rating, 1),
+        average_rating=round(avg_rating, 1) if avg_rating else None,
         five_star=rating_counts[5],
         four_star=rating_counts[4],
         three_star=rating_counts[3],

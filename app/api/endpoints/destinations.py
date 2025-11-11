@@ -1,14 +1,13 @@
-# app/api/endpoints/destinations.py - Destination API Endpoints
+# app/api/endpoints/destinations.py - Destination API Endpoints (FIXED)
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
-from typing import List, Optional
+from typing import Optional
 from app.database import get_db
 from app.models.destination import Destination, DestinationImage
 from app.models.category import Category
 from app.models.review import Review
 from app.schemas.destination import DestinationResponse, DestinationListResponse
-from app.config import settings
 
 router = APIRouter()
 
@@ -24,7 +23,7 @@ def get_destinations(
 ):
     """Get list of destinations with pagination and filters"""
     
-    # Base query with relationships
+    # Base query
     query = db.query(Destination).filter(Destination.is_active == is_active)
     
     # Apply filters
@@ -61,13 +60,17 @@ def get_destinations(
             Review.is_approved == True
         ).first()
         
+        # Safely extract values
+        review_count = int(review_stats[0]) if review_stats and review_stats[0] else 0
+        avg_rating = float(review_stats[1]) if review_stats and review_stats[1] else None
+        
         # Build response
         dest_data = {
             **dest.__dict__,
             'category_name': category.name if category else None,
             'category_icon': category.icon if category else None,
-            'review_count': review_stats.count or 0,
-            'avg_rating': float(review_stats.avg_rating) if review_stats.avg_rating else None
+            'review_count': review_count,
+            'avg_rating': avg_rating
         }
         result_destinations.append(DestinationResponse(**dest_data))
     
@@ -111,14 +114,18 @@ def get_destination(destination_id: int, db: Session = Depends(get_db)):
         Review.is_approved == True
     ).first()
     
+    # Safely extract values
+    review_count = int(review_stats[0]) if review_stats and review_stats[0] else 0
+    avg_rating = float(review_stats[1]) if review_stats and review_stats[1] else None
+    
     # Build response
     dest_data = {
         **destination.__dict__,
         'category_name': category.name if category else None,
         'category_icon': category.icon if category else None,
         'images': images,
-        'review_count': review_stats.count or 0,
-        'avg_rating': float(review_stats.avg_rating) if review_stats.avg_rating else None
+        'review_count': review_count,
+        'avg_rating': avg_rating
     }
     
     return DestinationResponse(**dest_data)
@@ -139,7 +146,7 @@ def get_destination_stats(db: Session = Depends(get_db)):
     total_categories = db.query(func.count(Category.id)).scalar()
     
     return {
-        "total_destinations": total_destinations,
-        "total_reviews": total_reviews,
-        "total_categories": total_categories
+        "total_destinations": total_destinations or 0,
+        "total_reviews": total_reviews or 0,
+        "total_categories": total_categories or 0
     }

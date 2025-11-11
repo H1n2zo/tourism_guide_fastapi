@@ -1,5 +1,5 @@
-# app/api/endpoints/categories.py - Category API Endpoints
-from fastapi import APIRouter, Depends
+# app/api/endpoints/categories.py - Category API Endpoints (FIXED)
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
@@ -52,7 +52,7 @@ def get_category(category_id: int, db: Session = Depends(get_db)):
     
     cat_data = {
         **category.__dict__,
-        'destination_count': dest_count
+        'destination_count': dest_count or 0
     }
     
     return CategoryResponse(**cat_data)

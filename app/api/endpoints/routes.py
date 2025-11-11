@@ -1,7 +1,8 @@
-# app/api/endpoints/routes.py - Route API Endpoints
-from fastapi import APIRouter, Depends, Query
+# app/api/endpoints/routes.py - Route API Endpoints (FIXED)
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from decimal import Decimal
 from app.database import get_db
 from app.models.route import Route
 from app.models.destination import Destination
@@ -40,10 +41,10 @@ def get_routes(
         origin = db.query(Destination).filter(Destination.id == route.origin_id).first()
         destination = db.query(Destination).filter(Destination.id == route.destination_id).first()
         
-        # Calculate total fare
+        # Calculate total fare safely
         total_fare = None
         if route.base_fare is not None and route.distance_km is not None and route.fare_per_km is not None:
-            total_fare = route.base_fare + (route.distance_km * route.fare_per_km)
+            total_fare = Decimal(str(route.base_fare)) + (Decimal(str(route.distance_km)) * Decimal(str(route.fare_per_km)))
         
         route_data = {
             **route.__dict__,
@@ -72,10 +73,10 @@ def get_route(route_id: int, db: Session = Depends(get_db)):
     origin = db.query(Destination).filter(Destination.id == route.origin_id).first()
     destination = db.query(Destination).filter(Destination.id == route.destination_id).first()
     
-    # Calculate total fare
+    # Calculate total fare safely
     total_fare = None
-    if route.base_fare and route.distance_km and route.fare_per_km:
-        total_fare = route.base_fare + (route.distance_km * route.fare_per_km)
+    if route.base_fare is not None and route.distance_km is not None and route.fare_per_km is not None:
+        total_fare = Decimal(str(route.base_fare)) + (Decimal(str(route.distance_km)) * Decimal(str(route.fare_per_km)))
     
     route_data = {
         **route.__dict__,
