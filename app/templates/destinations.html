@@ -9,6 +9,7 @@
         background-size: cover;
         background-position: center;
         position: relative;
+        margin-top: -100px;
     }
     .hero-overlay {
         position: absolute;
@@ -129,7 +130,7 @@ function displayDestination() {
     const html = `
         <!-- Hero Section -->
         <div class="hero-image" style="background-image: url('${imageUrl}');">
-            <div class="hero-overlay">
+            <div class="hero-overlay" >
                 <div class="container">
                     <span class="badge bg-primary mb-2">
                         <i class="fas ${destinationData.category_icon || 'fa-map-marker-alt'}"></i> ${destinationData.category_name || 'Category'}

@@ -10,6 +10,16 @@ from app.database import engine, Base
 from app.api.endpoints import destinations, categories, routes, reviews, feedback
 from app.config import settings
 
+# ✅ CRITICAL: Import ALL models BEFORE creating tables
+from app.models import (
+    user,           # Import user first
+    category,
+    destination,
+    review,
+    feedback as feedback_model,
+    route
+)
+
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
