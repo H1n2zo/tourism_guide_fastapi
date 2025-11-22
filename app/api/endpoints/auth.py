@@ -1,6 +1,6 @@
-# app/api/endpoints/auth.py - Authentication API Endpoints
+# app/api/endpoints/auth.py - FIXED Authentication API Endpoints
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -17,7 +17,7 @@ async def register(
     user_data: UserRegister,
     db: Session = Depends(get_db)
 ):
-    """Register a new user"""
+    """Register a new user - FIXED"""
     try:
         user = AuthService.register_user(
             db=db,
@@ -25,13 +25,28 @@ async def register(
             email=user_data.email,
             password=user_data.password
         )
-        return user
+        
+        # Convert to dict to avoid SQLAlchemy issues
+        user_dict = {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
+            "created_at": user.created_at
+        }
+        
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content=user_dict
+        )
+        
     except HTTPException as e:
         raise e
     except Exception as e:
+        print(f"Registration error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail=f"Registration failed: {str(e)}"
         )
 
 
@@ -41,34 +56,57 @@ async def login(
     credentials: UserLogin,
     db: Session = Depends(get_db)
 ):
-    """Login user and return token"""
-    user = AuthService.authenticate_user(
-        db=db,
-        username=credentials.username,
-        password=credentials.password
-    )
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password"
+    """Login user and return token - FIXED"""
+    try:
+        user = AuthService.authenticate_user(
+            db=db,
+            username=credentials.username,
+            password=credentials.password
         )
-    
-    # Create access token
-    access_token = AuthService.create_access_token(
-        data={"user_id": user.id, "username": user.username}
-    )
-    
-    # Store in session (for template-based pages)
-    request.session["user_id"] = user.id
-    request.session["username"] = user.username
-    request.session["role"] = user.role.value
-    request.session["logged_in"] = True
-    
-    return UserWithToken(
-        user=UserResponse.from_orm(user),
-        token=Token(access_token=access_token)
-    )
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid username or password"
+            )
+        
+        # Create access token
+        access_token = AuthService.create_access_token(
+            data={"user_id": user.id, "username": user.username}
+        )
+        
+        # Store in session (for template-based pages)
+        request.session["user_id"] = user.id
+        request.session["username"] = user.username
+        request.session["role"] = user.role.value
+        request.session["logged_in"] = True
+        
+        # Return proper response
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "role": user.role.value,
+                    "created_at": str(user.created_at)
+                },
+                "token": {
+                    "access_token": access_token,
+                    "token_type": "bearer"
+                }
+            }
+        )
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print(f"Login error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Login failed: {str(e)}"
+        )
 
 
 @router.post("/logout")

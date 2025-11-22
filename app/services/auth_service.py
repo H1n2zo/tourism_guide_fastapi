@@ -1,3 +1,4 @@
+# app/services/auth_service.py - FIXED Authentication Service
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -13,12 +14,18 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class AuthService:
-    """Authentication service for user management"""
+    """Authentication service for user management - FIXED"""
     
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
-        """Verify a password against its hash"""
-        return pwd_context.verify(plain_password, hashed_password)
+        """Verify a password against its hash - FIXED"""
+        try:
+            # Ensure hashed_password is a string
+            hash_str = str(hashed_password) if not isinstance(hashed_password, str) else hashed_password
+            return pwd_context.verify(plain_password, hash_str)
+        except Exception as e:
+            print(f"Password verification error: {e}")
+            return False
     
     @staticmethod
     def get_password_hash(password: str) -> str:
@@ -53,54 +60,78 @@ class AuthService:
     
     @staticmethod
     def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
-        """Authenticate user with username and password"""
-        user = db.query(User).filter(User.username == username).first()
-        
-        if not user:
+        """Authenticate user with username and password - FIXED"""
+        try:
+            user = db.query(User).filter(User.username == username).first()
+            
+            if not user:
+                print(f"User not found: {username}")
+                return None
+            
+            # Get password as string
+            stored_password = str(user.password)
+            print(f"Verifying password for user: {username}")
+            
+            if not AuthService.verify_password(password, stored_password):
+                print(f"Password verification failed for user: {username}")
+                return None
+            
+            print(f"User authenticated successfully: {username}")
+            return user
+            
+        except Exception as e:
+            print(f"Authentication error: {e}")
             return None
-        
-        # FIX: Convert Column to string
-        stored_password = str(user.password) if hasattr(user.password, '__str__') else user.password
-        
-        if not AuthService.verify_password(password, stored_password):
-            return None
-        
-        return user
     
     @staticmethod
     def register_user(db: Session, username: str, email: str, password: str) -> User:
-        """Register a new user"""
-        # Check if username exists
-        existing_user = db.query(User).filter(User.username == username).first()
-        if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username already exists"
-            )
-        
-        # Check if email exists
-        if email:
-            existing_email = db.query(User).filter(User.email == email).first()
-            if existing_email:
+        """Register a new user - FIXED"""
+        try:
+            # Check if username exists
+            existing_user = db.query(User).filter(User.username == username).first()
+            if existing_user:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Email already registered"
+                    detail="Username already exists"
                 )
-        
-        # Create new user
-        hashed_password = AuthService.get_password_hash(password)
-        new_user = User(
-            username=username,
-            email=email,
-            password=hashed_password,
-            role=UserRole.USER
-        )
-        
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-        
-        return new_user
+            
+            # Check if email exists
+            if email:
+                existing_email = db.query(User).filter(User.email == email).first()
+                if existing_email:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Email already registered"
+                    )
+            
+            # Hash password
+            hashed_password = AuthService.get_password_hash(password)
+            print(f"Creating user: {username} with hashed password")
+            
+            # Create new user
+            new_user = User(
+                username=username,
+                email=email,
+                password=hashed_password,
+                role=UserRole.USER
+            )
+            
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+            
+            print(f"User created successfully: {username} (ID: {new_user.id})")
+            return new_user
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            db.rollback()
+            print(f"Registration error: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create user: {str(e)}"
+            )
     
     @staticmethod
     def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
