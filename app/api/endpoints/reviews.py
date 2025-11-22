@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List, Optional
+from typing import List
 from app.database import get_db
 from app.models.review import Review
 from app.schemas.review import ReviewCreate, ReviewResponse, ReviewStats
@@ -50,6 +50,7 @@ def create_review(review: ReviewCreate, db: Session = Depends(get_db)):
 def get_review_stats(destination_id: int, db: Session = Depends(get_db)):
     """Get review statistics for a destination"""
     
+    # Get approved reviews
     reviews = db.query(Review).filter(
         Review.destination_id == destination_id,
         Review.is_approved == True
@@ -67,19 +68,22 @@ def get_review_stats(destination_id: int, db: Session = Depends(get_db)):
             one_star=0
         )
     
+    # Calculate stats
     total = len(reviews)
-    avg_rating = sum(r.rating for r in reviews) / total
+    total_rating = sum(r.rating for r in reviews)
+    avg_rating = total_rating / total if total > 0 else 0.0
     
     # Count ratings by star level
     rating_counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
     for review in reviews:
-        if review.rating in rating_counts:
-            rating_counts[review.rating] += 1
+        rating_value = review.rating
+        if rating_value in rating_counts:
+            rating_counts[rating_value] += 1
     
     return ReviewStats(
         destination_id=destination_id,
         total_reviews=total,
-        average_rating=round(avg_rating, 1),  # FIXED: Now avg_rating is a float
+        average_rating=round(avg_rating, 1),
         five_star=rating_counts[5],
         four_star=rating_counts[4],
         three_star=rating_counts[3],

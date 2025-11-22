@@ -110,7 +110,10 @@
         <h5 class="mb-4"><i class="fas fa-route"></i> Available Routes</h5>
         
         <div id="routesContainer">
-            <!-- Routes will be loaded here -->
+            <div class="text-center text-muted">
+                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                <p class="mt-2">Loading routes...</p>
+            </div>
         </div>
     </div>
     
@@ -131,14 +134,17 @@ let currentCategory = '';
 let allDestinations = [];
 let allRoutes = [];
 let map, routingControl, selectedRouteData = null;
+let destinationMarkers = [];
+let routePolyline = null;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Initializing Tourism Guide...');
     loadStats();
     loadCategories();
+    initMap();
     loadDestinations();
     loadRoutes();
-    initMap();
 });
 
 // Load statistics
@@ -150,7 +156,7 @@ async function loadStats() {
         document.getElementById('totalReviews').textContent = data.total_reviews;
         document.getElementById('totalCategories').textContent = data.total_categories;
     } catch (error) {
-        console.error('Error loading stats:', error);
+        console.error('❌ Error loading stats:', error);
     }
 }
 
@@ -168,7 +174,7 @@ async function loadCategories() {
             categoryFilter.appendChild(option);
         });
     } catch (error) {
-        console.error('Error loading categories:', error);
+        console.error('❌ Error loading categories:', error);
     }
 }
 
@@ -189,9 +195,10 @@ async function loadDestinations(page = 1) {
         allDestinations = data.destinations;
         displayDestinations(data.destinations);
         displayPagination(data);
+        updateMapMarkers();
         
     } catch (error) {
-        console.error('Error loading destinations:', error);
+        console.error('❌ Error loading destinations:', error);
     }
 }
 
@@ -229,18 +236,18 @@ function displayDestinations(destinations) {
                     <div class="position-relative">
                         <img src="${imageUrl}" class="card-img-top" alt="${dest.name}" loading="lazy">
                         <span class="category-badge">
-                            <i class="fas ${dest.category_icon}"></i> ${dest.category_name}
+                            <i class="fas ${dest.category_icon || 'fa-map-marker-alt'}"></i> ${dest.category_name || 'Uncategorized'}
                         </span>
                     </div>
                     <div class="card-body">
                         <h5 class="card-title">${dest.name}</h5>
-                        <p class="card-text">${dest.description ? dest.description.substring(0, 100) + '...' : ''}</p>
+                        <p class="card-text">${dest.description ? dest.description.substring(0, 100) + '...' : 'No description available'}</p>
                         <div class="mb-2">${ratingHtml}</div>
                         <a href="/destination/${dest.id}" class="btn btn-primary btn-sm">
                             <i class="fas fa-info-circle"></i> View Details
                         </a>
                         ${dest.latitude && dest.longitude ? `
-                        <button class="btn btn-outline-primary btn-sm" onclick="showOnMap(${dest.latitude}, ${dest.longitude})">
+                        <button class="btn btn-outline-primary btn-sm" onclick="showOnMap(${dest.latitude}, ${dest.longitude}, '${dest.name.replace(/'/g, "\\'")}')">
                             <i class="fas fa-map-marker-alt"></i> Show on Map
                         </button>
                         ` : ''}
@@ -277,21 +284,35 @@ function applyFilters() {
 // Load routes
 async function loadRoutes() {
     try {
+        console.log('🔄 Loading routes...');
         const response = await fetch('/api/routes/');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         allRoutes = await response.json();
+        console.log(`✅ Loaded ${allRoutes.length} routes`);
+        
         displayRoutes(allRoutes);
         populateRouteFilters(allRoutes);
+        
     } catch (error) {
-        console.error('Error loading routes:', error);
+        console.error('❌ Error loading routes:', error);
+        document.getElementById('routesContainer').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i> 
+                Failed to load routes. Please refresh the page.
+            </div>
+        `;
     }
 }
 
 // Display routes
 function displayRoutes(routes) {
     const container = document.getElementById('routesContainer');
-    container.innerHTML = '';
     
-    if (routes.length === 0) {
+    if (!routes || routes.length === 0) {
         container.innerHTML = `
             <div class="no-routes-message">
                 <i class="fas fa-route"></i>
@@ -302,15 +323,15 @@ function displayRoutes(routes) {
         return;
     }
     
-    routes.forEach(route => {
+    container.innerHTML = routes.map(route => {
         const totalFare = route.total_fare ? `₱${parseFloat(route.total_fare).toFixed(2)}` : 'N/A';
-        const routeName = route.route_name || `${route.origin_name} to ${route.destination_name}`;
+        const routeName = route.route_name || `${route.origin_name || 'Unknown'} to ${route.destination_name || 'Unknown'}`;
         
-        const card = `
-            <div class="route-card" onclick='selectRoute(${JSON.stringify(route)})' 
+        return `
+            <div class="route-card" onclick='selectRoute(${JSON.stringify(route).replace(/'/g, "\\'")})'
                  data-route-id="${route.id}"
-                 data-origin-id="${route.origin_id}"
-                 data-destination-id="${route.destination_id}"
+                 data-origin-id="${route.origin_id || ''}"
+                 data-destination-id="${route.destination_id || ''}"
                  data-transport="${route.transport_mode}">
                 <div class="route-header">
                     <h6 class="route-title">${routeName}</h6>
@@ -321,9 +342,9 @@ function displayRoutes(routes) {
                 
                 <div class="route-locations">
                     <i class="fas fa-map-marker-alt"></i>
-                    <span>${route.origin_name}</span>
+                    <span>${route.origin_name || 'Unknown'}</span>
                     <span class="route-arrow"><i class="fas fa-arrow-right"></i></span>
-                    <span>${route.destination_name}</span>
+                    <span>${route.destination_name || 'Unknown'}</span>
                 </div>
                 
                 <div class="route-details">
@@ -363,8 +384,7 @@ function displayRoutes(routes) {
                 ` : ''}
             </div>
         `;
-        container.innerHTML += card;
-    });
+    }).join('');
 }
 
 // Populate route filter dropdowns
@@ -418,6 +438,8 @@ function filterRoutes() {
 
 // Initialize Leaflet map
 function initMap() {
+    console.log('🗺️ Initializing map...');
+    
     map = L.map('map').setView([11.0059, 124.6075], 13);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -425,31 +447,69 @@ function initMap() {
         maxZoom: 19
     }).addTo(map);
     
-    // Add destination markers
+    console.log('✅ Map initialized');
+}
+
+// Update map markers
+function updateMapMarkers() {
+    // Clear existing markers
+    destinationMarkers.forEach(marker => map.removeLayer(marker));
+    destinationMarkers = [];
+    
+    // Add destination markers with custom icons
     allDestinations.forEach(dest => {
         if (dest.latitude && dest.longitude) {
-            const marker = L.marker([parseFloat(dest.latitude), parseFloat(dest.longitude)]).addTo(map);
+            // Create custom icon based on category
+            const iconHtml = `<div style="background: #132365ff; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+                <i class="fas ${dest.category_icon || 'fa-map-marker-alt'}" style="font-size: 14px;"></i>
+            </div>`;
             
-            const ratingHtml = dest.review_count > 0 ? 
-                `${'★'.repeat(Math.round(dest.avg_rating))}${'☆'.repeat(5-Math.round(dest.avg_rating))} ${dest.avg_rating.toFixed(1)}` :
-                'Not rated';
+            const customIcon = L.divIcon({
+                html: iconHtml,
+                className: 'custom-marker',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+            
+            const marker = L.marker(
+                [parseFloat(dest.latitude), parseFloat(dest.longitude)],
+                { icon: customIcon }
+            ).addTo(map);
+            
+            const ratingHtml = dest.review_count > 0 && dest.avg_rating ? 
+                `<div style="color:#ffc107;">★ ${dest.avg_rating.toFixed(1)} (${dest.review_count} reviews)</div>` :
+                '<div style="color:#999;">Not rated yet</div>';
             
             marker.bindPopup(`
-                <div>
+                <div style="min-width:200px;">
                     ${dest.image_path ? `<img src="/uploads/${dest.image_path}" style="width:100%;height:120px;object-fit:cover;border-radius:5px;margin-bottom:8px;">` : ''}
-                    <h6>${dest.name}</h6>
-                    <p><i class="fas ${dest.category_icon}"></i> ${dest.category_name}</p>
-                    <div style="color:#ffc107;">${ratingHtml}</div>
-                    <a href="/destination/${dest.id}" class="btn btn-sm btn-primary mt-2">View Details</a>
+                    <h6 style="margin:0 0 5px 0;">${dest.name}</h6>
+                    <p style="margin:0 0 5px 0; font-size:0.85rem;"><i class="fas ${dest.category_icon || 'fa-tag'}"></i> ${dest.category_name || 'Uncategorized'}</p>
+                    ${ratingHtml}
+                    <a href="/destination/${dest.id}" class="btn btn-sm btn-primary mt-2" style="width:100%;">View Details</a>
                 </div>
             `);
+            
+            destinationMarkers.push(marker);
         }
     });
+    
+    console.log(`✅ Added ${destinationMarkers.length} markers to map`);
 }
 
 // Show destination on map
-function showOnMap(lat, lng) {
-    map.setView([parseFloat(lat), parseFloat(lng)], 15);
+function showOnMap(lat, lng, name) {
+    map.setView([parseFloat(lat), parseFloat(lng)], 16);
+    
+    // Find and open popup
+    destinationMarkers.forEach(marker => {
+        const markerLatLng = marker.getLatLng();
+        if (Math.abs(markerLatLng.lat - lat) < 0.0001 && Math.abs(markerLatLng.lng - lng) < 0.0001) {
+            marker.openPopup();
+        }
+    });
+    
+    // Scroll to map
     document.getElementById('routes').scrollIntoView({behavior: 'smooth'});
 }
 
@@ -468,44 +528,69 @@ function selectRoute(routeData) {
 function showRouteOnMap() {
     if (!selectedRouteData) return;
     
-    if (routingControl) {
-        map.removeControl(routingControl);
-    }
+    console.log('🛣️ Showing route:', selectedRouteData);
     
-    map.eachLayer(layer => {
-        if (layer instanceof L.Polyline && !(layer instanceof L.Marker)) {
-            map.removeLayer(layer);
-        }
-    });
+    // Clear previous route
+    if (routePolyline) {
+        map.removeLayer(routePolyline);
+    }
     
     const startLat = parseFloat(selectedRouteData.origin_lat);
     const startLng = parseFloat(selectedRouteData.origin_lng);
     const endLat = parseFloat(selectedRouteData.dest_lat);
     const endLng = parseFloat(selectedRouteData.dest_lng);
     
-    // Draw simple polyline
-    L.polyline([[startLat, startLng], [endLat, endLng]], {
+    if (isNaN(startLat) || isNaN(startLng) || isNaN(endLat) || isNaN(endLng)) {
+        console.warn('⚠️ Invalid coordinates for route');
+        alert('This route does not have valid coordinates');
+        return;
+    }
+    
+    // Draw polyline with animation
+    routePolyline = L.polyline([[startLat, startLng], [endLat, endLng]], {
         color: '#ffc107',
         weight: 6,
         opacity: 0.8,
-        dashArray: '10, 10'
+        dashArray: '10, 10',
+        className: 'route-polyline-animated'
     }).addTo(map);
+    
+    // Add start/end markers
+    L.marker([startLat, startLng], {
+        icon: L.divIcon({
+            html: '<div style="background:#28a745;color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:bold;border:2px solid white;">A</div>',
+            className: '',
+            iconSize: [24, 24]
+        })
+    }).addTo(map).bindPopup(`<b>Start:</b> ${selectedRouteData.origin_name}`);
+    
+    L.marker([endLat, endLng], {
+        icon: L.divIcon({
+            html: '<div style="background:#dc3545;color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:bold;border:2px solid white;">B</div>',
+            className: '',
+            iconSize: [24, 24]
+        })
+    }).addTo(map).bindPopup(`<b>End:</b> ${selectedRouteData.destination_name}`);
     
     document.getElementById('clearRouteBtn').classList.add('show');
     
+    // Fit bounds
     const bounds = L.latLngBounds([startLat, startLng], [endLat, endLng]);
     map.fitBounds(bounds, {padding: [80, 80]});
+    
+    console.log('✅ Route displayed on map');
 }
 
 // Clear route
 function clearRoute() {
-    if (routingControl) {
-        map.removeControl(routingControl);
-        routingControl = null;
+    if (routePolyline) {
+        map.removeLayer(routePolyline);
+        routePolyline = null;
     }
     
+    // Remove A/B markers (they're temporary)
     map.eachLayer(layer => {
-        if (layer instanceof L.Polyline && !(layer instanceof L.Marker)) {
+        if (layer instanceof L.Marker && !destinationMarkers.includes(layer)) {
             map.removeLayer(layer);
         }
     });
@@ -519,4 +604,16 @@ function clearRoute() {
     map.setView([11.0059, 124.6075], 13);
 }
 </script>
+
+<style>
+.route-polyline-animated {
+    animation: dash 1s linear infinite;
+}
+
+@keyframes dash {
+    to {
+        stroke-dashoffset: -20;
+    }
+}
+</style>
 {% endblock %}
