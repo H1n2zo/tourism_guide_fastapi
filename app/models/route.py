@@ -1,4 +1,4 @@
-# app/models/route.py - Route Database Model
+# app/models/route.py - Route Database Model (FIXED)
 from sqlalchemy import Column, Integer, String, Text, Numeric, Boolean, DateTime, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -7,6 +7,7 @@ import enum
 
 
 class TransportMode(str, enum.Enum):
+    """Transport modes - MUST match database enum values"""
     JEEPNEY = "jeepney"
     TAXI = "taxi"
     BUS = "bus"

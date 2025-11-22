@@ -1,4 +1,4 @@
-# app/models/user.py - User Database Model
+# app/models/user.py - User Database Model (FIXED)
 from sqlalchemy import Column, Integer, String, DateTime, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -7,8 +7,9 @@ import enum
 
 
 class UserRole(str, enum.Enum):
-    ADMIN = "admin"
-    USER = "user"
+    """User roles - MUST match database enum values exactly"""
+    ADMIN = "admin"  # Changed from uppercase to lowercase to match DB
+    USER = "user"    # Changed from uppercase to lowercase to match DB
 
 
 class User(Base):

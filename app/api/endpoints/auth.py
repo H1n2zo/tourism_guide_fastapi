@@ -59,10 +59,11 @@ async def login(
         data={"user_id": user.id, "username": user.username}
     )
     
-    # Store user_id in session (for web pages)
+    # Store in session (for template-based pages)
     request.session["user_id"] = user.id
     request.session["username"] = user.username
     request.session["role"] = user.role.value
+    request.session["logged_in"] = True
     
     return UserWithToken(
         user=UserResponse.from_orm(user),

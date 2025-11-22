@@ -1,4 +1,4 @@
-# app/api/deps.py - API Dependencies
+# app/api/deps.py - API Dependencies (FIXED)
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -60,9 +60,6 @@ async def require_current_user(
 async def require_admin(
     current_user: User = Depends(require_current_user)
 ) -> User:
-    """
-    Require admin role. Raises 403 if not admin.
-    """
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

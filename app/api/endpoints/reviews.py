@@ -30,13 +30,22 @@ def get_destination_reviews(
 def create_review(review: ReviewCreate, db: Session = Depends(get_db)):
     """Submit a new review"""
     
-    # Create review (will be approved by default for user panel)
+    # Validate destination exists
+    from app.models.destination import Destination
+    destination = db.query(Destination).filter(
+        Destination.id == review.destination_id
+    ).first()
+    
+    if not destination:
+        raise HTTPException(status_code=404, detail="Destination not found")
+    
+    # Create review
     db_review = Review(
         destination_id=review.destination_id,
         user_name=review.user_name,
         rating=review.rating,
         comment=review.comment,
-        is_approved=True  # Auto-approve for now
+        is_approved=True  # Auto-approve for user panel
     )
     
     db.add(db_review)
@@ -50,7 +59,6 @@ def create_review(review: ReviewCreate, db: Session = Depends(get_db)):
 def get_review_stats(destination_id: int, db: Session = Depends(get_db)):
     """Get review statistics for a destination"""
     
-    # Get approved reviews
     reviews = db.query(Review).filter(
         Review.destination_id == destination_id,
         Review.is_approved == True
@@ -68,17 +76,16 @@ def get_review_stats(destination_id: int, db: Session = Depends(get_db)):
             one_star=0
         )
     
-    # Calculate stats
+    # FIX: Proper integer conversion
     total = len(reviews)
-    total_rating = sum(r.rating for r in reviews)
-    avg_rating = total_rating / total if total > 0 else 0.0
+    ratings_list = [int(r.rating) for r in reviews]
+    avg_rating = sum(ratings_list) / total if total > 0 else 0.0
     
-    # Count ratings by star level
+    # Count by star
     rating_counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
-    for review in reviews:
-        rating_value = review.rating
-        if rating_value in rating_counts:
-            rating_counts[rating_value] += 1
+    for rating in ratings_list:
+        if rating in rating_counts:
+            rating_counts[rating] += 1
     
     return ReviewStats(
         destination_id=destination_id,

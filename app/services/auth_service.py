@@ -59,7 +59,10 @@ class AuthService:
         if not user:
             return None
         
-        if not AuthService.verify_password(password, user.password):
+        # FIX: Convert Column to string
+        stored_password = str(user.password) if hasattr(user.password, '__str__') else user.password
+        
+        if not AuthService.verify_password(password, stored_password):
             return None
         
         return user

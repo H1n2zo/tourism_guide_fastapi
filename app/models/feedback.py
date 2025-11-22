@@ -1,4 +1,4 @@
-# app/models/feedback.py - Website Feedback Model
+# app/models/feedback.py - Website Feedback Model (FIXED)
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, CheckConstraint, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -7,6 +7,7 @@ import enum
 
 
 class FeedbackCategory(str, enum.Enum):
+    """Feedback categories - MUST match database enum values"""
     USABILITY = "usability"
     FEATURES = "features"
     CONTENT = "content"
