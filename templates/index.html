@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tourism Guide System - Explore Ormoc City</title>
+    <meta name="description" content="Discover amazing places in Ormoc City with our interactive tourism guide. Find routes, view destinations, and plan your journey.">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+        }
+        
+        body {
+            padding-top: 76px;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, #132365ff 0%, #4b59a3ff 100%);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .hero-section {
+            background: linear-gradient(135deg, #132365ff 0%, #4b59a3ff 100%);
+            color: white;
+            padding: 80px 0;
+            margin-bottom: 30px;
+        }
+        
+        .stats-row {
+            display: flex;
+            justify-content: center;
+            gap: 50px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            text-align: center;
+            background: rgba(255,255,255,0.1);
+            padding: 20px 40px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s;
+        }
+        
+        .stat-item:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-item h3 {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 0;
+        }
+        
+        .stat-item p {
+            margin: 0;
+            opacity: 0.9;
+        }
+        
+        #map {
+            height: 600px;
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        
+        .destination-card {
+            transition: transform 0.3s, box-shadow 0.3s;
+            height: 100%;
+            border: none;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .destination-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .destination-card img {
+            height: 200px;
+            object-fit: cover;
+        }
+        
+        .category-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+        
+        .search-box {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            margin-top: -50px;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .route-panel {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .route-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+        }
+
+        .route-card:hover {
+            border-color: #132365ff;
+            box-shadow: 0 5px 15px rgba(19, 35, 101, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .route-card.selected {
+            border-color: #132365ff;
+            background: linear-gradient(135deg, rgba(19, 35, 101, 0.05) 0%, rgba(75, 89, 163, 0.05) 100%);
+        }
+        
+        .rating {
+            color: #ffc107;
+            font-size: 0.95rem;
+        }
+
+        #backToTop {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #132365ff 0%, #4b59a3ff 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        
+        #backToTop.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        html {
+            scroll-behavior: smooth;
+        }
+    </style>
+</head>
+<body>
+    <!-- Back to Top Button -->
+    <button id="backToTop" title="Back to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-map-marked-alt"></i> Tourism Guide
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#home"><i class="fas fa-home"></i> Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#destinations"><i class="fas fa-map-pin"></i> Destinations</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#routes"><i class="fas fa-route"></i> Find Route</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/feedback"><i class="fas fa-comment"></i> Feedback</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/login"><i class="fas fa-sign-in-alt"></i> Login</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-section" id="home" style="margin-top: -50px">
+        <div class="container text-center">
+            <h1 class="display-3 fw-bold mb-3">Discover Amazing Places</h1>
+            <p class="lead mb-4">Explore tourist destinations, find routes, and plan your journey</p>
+            <a href="#destinations" class="btn btn-light btn-lg"><i class="fas fa-compass"></i> Start Exploring</a>
+            
+            <!-- Statistics Row -->
+            <div class="stats-row">
+                <div class="stat-item">
+                    <h3 id="totalDestinations">0</h3>
+                    <p>Destinations</p>
+                </div>
+                <div class="stat-item">
+                    <h3 id="totalReviews">0</h3>
+                    <p>Reviews</p>
+                </div>
+                <div class="stat-item">
+                    <h3 id="totalCategories">0</h3>
+                    <p>Categories</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Search and Filter Section -->
+    <div class="container">
+        <div class="search-box">
+            <form id="searchForm" class="row g-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control" id="searchInput" placeholder="Search destinations...">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select" id="categoryFilter">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter"></i> Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Destinations Grid -->
+    <div class="container mt-5" id="destinations">
+        <h2 class="mb-4"><i class="fas fa-map-pin"></i> Featured Destinations</h2>
+        <div class="row g-4" id="destinationsGrid">
+            <!-- Destinations will be loaded here -->
+            <div class="col-12 text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map Section with Route Finder -->
+    <div class="container mt-5" id="routes">
+        <h2 class="mb-4"><i class="fas fa-map"></i> Interactive Map & Route Finder</h2>
+        
+        <div class="route-panel">
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <h5 class="mb-3"><i class="fas fa-filter"></i> Filter Routes</h5>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Filter by Origin</label>
+                    <select class="form-select" id="filterOrigin">
+                        <option value="">All Origins</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Filter by Destination</label>
+                    <select class="form-select" id="filterDestination">
+                        <option value="">All Destinations</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Filter by Transport</label>
+                    <select class="form-select" id="filterTransport">
+                        <option value="">All Transport Modes</option>
+                        <option value="jeepney">Jeepney</option>
+                        <option value="taxi">Taxi</option>
+                        <option value="bus">Bus</option>
+                        <option value="van">Van</option>
+                        <option value="tricycle">Tricycle</option>
+                        <option value="walking">Walking</option>
+                    </select>
+                </div>
+            </div>
+
+            <hr class="my-4">
+            
+            <h5 class="mb-4"><i class="fas fa-route"></i> Available Routes</h5>
+            
+            <div id="routesContainer">
+                <!-- Routes will be loaded here -->
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading routes...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="map"></div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white text-center py-4 mt-5">
+        <p>&copy; 2025 Tourism Guide System. All rights reserved.</p>
+        <p><small>Powered by OpenStreetMap & Leaflet (100% Free & Open Source)</small></p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    
+    <script>
+        let map, destinations = [], routes = [];
+        const API_BASE = '/api';
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStatistics();
+            loadCategories();
+            loadDestinations();
+            loadRoutes();
+            initMap();
+            setupEventListeners();
+        });
+
+        // Load statistics
+        async function loadStatistics() {
+            try {
+                const response = await fetch(`${API_BASE}/admin/dashboard/stats`);
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('totalDestinations').textContent = data.destinations.total;
+                    document.getElementById('totalReviews').textContent = data.reviews.total;
+                    document.getElementById('totalCategories').textContent = data.categories.total;
+                }
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+            }
+        }
+
+        // Load categories
+        async function loadCategories() {
+            try {
+                const response = await fetch(`${API_BASE}/categories/`);
+                const categories = await response.json();
+                
+                const select = document.getElementById('categoryFilter');
+                categories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.textContent = cat.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        }
+
+        // Load destinations
+        async function loadDestinations(search = '', category = '') {
+            try {
+                let url = `${API_BASE}/destinations/?is_active=true`;
+                if (search) url += `&search=${encodeURIComponent(search)}`;
+                if (category) url += `&category_id=${category}`;
+                
+                const response = await fetch(url);
+                destinations = await response.json();
+                
+                displayDestinations(destinations);
+                updateMapMarkers();
+            } catch (error) {
+                console.error('Error loading destinations:', error);
+            }
+        }
+
+        // Display destinations
+        function displayDestinations(dests) {
+            const grid = document.getElementById('destinationsGrid');
+            
+            if (dests.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-12 text-center">
+                        <i class="fas fa-search fa-4x text-muted mb-3"></i>
+                        <h3>No destinations found</h3>
+                        <p class="text-muted">Try adjusting your search or filter criteria</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = dests.map(dest => `
+                <div class="col-md-4">
+                    <div class="card destination-card">
+                        <div class="position-relative">
+                            <img src="${dest.image_path ? '/uploads/' + dest.image_path : 'https://via.placeholder.com/400x300'}" 
+                                 class="card-img-top" 
+                                 alt="${dest.name}">
+                            <span class="category-badge">
+                                <i class="fas ${dest.category_icon || 'fa-map-pin'}"></i> ${dest.category_name || 'Uncategorized'}
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title">${dest.name}</h5>
+                            <p class="card-text">${dest.description ? dest.description.substring(0, 100) + '...' : ''}</p>
+                            <div class="mb-2">
+                                ${dest.review_count > 0 ? `
+                                    <div class="rating">
+                                        ${'★'.repeat(Math.round(dest.avg_rating))}${'☆'.repeat(5 - Math.round(dest.avg_rating))}
+                                    </div>
+                                    <small class="text-muted">
+                                        ${dest.avg_rating.toFixed(1)} / 5 (${dest.review_count} reviews)
+                                    </small>
+                                ` : `
+                                    <small class="text-muted"><i class="far fa-star"></i> Not rated yet</small>
+                                `}
+                            </div>
+                            <a href="/destination/${dest.id}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-info-circle"></i> View Details
+                            </a>
+                            <button class="btn btn-outline-primary btn-sm" onclick="showOnMap(${dest.latitude}, ${dest.longitude})">
+                                <i class="fas fa-map-marker-alt"></i> Show on Map
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Load routes
+        async function loadRoutes() {
+            try {
+                const response = await fetch(`${API_BASE}/routes/?is_active=true`);
+                routes = await response.json();
+                displayRoutes(routes);
+            } catch (error) {
+                console.error('Error loading routes:', error);
+            }
+        }
+
+        // Display routes
+        function displayRoutes(routeList) {
+            const container = document.getElementById('routesContainer');
+            
+            if (routeList.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="fas fa-route fa-3x text-muted mb-3"></i>
+                        <h5>No Routes Available</h5>
+                        <p class="text-muted">Routes will be displayed here once added.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = routeList.map(route => `
+                <div class="route-card" onclick="selectRoute(${JSON.stringify(route).replace(/"/g, '&quot;')})">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h6 class="mb-0">${route.route_name || route.origin_name + ' to ' + route.destination_name}</h6>
+                        <span class="badge bg-primary">${route.transport_mode}</span>
+                    </div>
+                    <div class="d-flex gap-3">
+                        ${route.distance_km ? `<div><i class="fas fa-road text-warning"></i> ${route.distance_km} km</div>` : ''}
+                        ${route.estimated_time_minutes ? `<div><i class="fas fa-clock text-info"></i> ${route.estimated_time_minutes} min</div>` : ''}
+                        ${route.total_fare ? `<div><i class="fas fa-peso-sign text-success"></i> ₱${route.total_fare}</div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Initialize map
+        function initMap() {
+            map = L.map('map').setView([11.0059, 124.6075], 13);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+        }
+
+        // Update map markers
+        function updateMapMarkers() {
+            // Clear existing markers
+            map.eachLayer(layer => {
+                if (layer instanceof L.Marker) {
+                    map.removeLayer(layer);
+                }
+            });
+            
+            // Add new markers
+            destinations.forEach(dest => {
+                if (dest.latitude && dest.longitude) {
+                    const marker = L.marker([dest.latitude, dest.longitude]).addTo(map);
+                    marker.bindPopup(`
+                        <h6>${dest.name}</h6>
+                        <p>${dest.category_name || ''}</p>
+                        <a href="/destination/${dest.id}" class="btn btn-sm btn-primary">View Details</a>
+                    `);
+                }
+            });
+        }
+
+        // Show destination on map
+        function showOnMap(lat, lng) {
+            map.setView([lat, lng], 15);
+            document.getElementById('routes').scrollIntoView({behavior: 'smooth'});
+        }
+
+        // Select route (placeholder)
+        function selectRoute(route) {
+            console.log('Selected route:', route);
+            // Implement route visualization
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            document.getElementById('searchForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const search = document.getElementById('searchInput').value;
+                const category = document.getElementById('categoryFilter').value;
+                loadDestinations(search, category);
+            });
+            
+            // Back to top button
+            const backToTop = document.getElementById('backToTop');
+            window.addEventListener('scroll', () => {
+                if (window.pageYOffset > 300) {
+                    backToTop.classList.add('show');
+                } else {
+                    backToTop.classList.remove('show');
+                }
+            });
+            
+            backToTop.addEventListener('click', () => {
+                window.scrollTo({top: 0, behavior: 'smooth'});
+            });
+        }
+    </script>
+</body>
+</html>
