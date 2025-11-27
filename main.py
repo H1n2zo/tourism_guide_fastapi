@@ -11,13 +11,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 import os
 
-from config.database import engine, Base, get_db
+from config.database import engine, Base, get_db, init_db
 from config.settings import settings
 from api.endpoints import auth, destinations, categories, reviews, routes, feedback, admin
 from core.security import create_default_admin
-
-# Create database tables
-Base.metadata.create_all(bind=engine)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -37,11 +34,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Static files
+# Create directories
 os.makedirs("static", exist_ok=True)
+os.makedirs("static/css", exist_ok=True)
+os.makedirs("static/js", exist_ok=True)
+os.makedirs("static/images", exist_ok=True)
 os.makedirs("uploads/destinations", exist_ok=True)
 os.makedirs("uploads/categories", exist_ok=True)
+os.makedirs("templates", exist_ok=True)
+os.makedirs("templates/admin", exist_ok=True)
 
+# Static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
@@ -149,8 +152,13 @@ async def admin_users(request: Request):
 @app.on_event("startup")
 async def startup_event():
     """Create default admin user on startup"""
+    # Initialize database tables
+    init_db()
+    
+    # Create default admin
     db = next(get_db())
     create_default_admin(db)
+    
     print(f"""
     ╔════════════════════════════════════════════════════════╗
     ║  🎉 Tourism Guide FastAPI - Started Successfully! 🎉  ║

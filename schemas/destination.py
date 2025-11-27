@@ -1,7 +1,15 @@
-from pydantic import BaseModel, EmailStr, Field, validator
-from typing import Optional, List
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional
 from datetime import datetime
 from decimal import Decimal
+
+# ==================== PAGINATION SCHEMA ====================
+class PaginationParams(BaseModel):
+    page: int = Field(1, ge=1)
+    page_size: int = Field(10, ge=1, le=100)
+    search: Optional[str] = None
+    category_id: Optional[int] = None
+    is_active: Optional[bool] = None
 
 # ==================== DESTINATION SCHEMAS ====================
 class DestinationBase(BaseModel):
@@ -42,4 +50,3 @@ class DestinationResponse(DestinationBase):
     
     class Config:
         from_attributes = True
-
