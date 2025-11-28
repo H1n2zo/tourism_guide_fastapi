@@ -7,7 +7,6 @@ import enum
 
 
 class FeedbackCategory(str, enum.Enum):
-    """Feedback categories - MUST match database enum values"""
     USABILITY = "usability"
     FEATURES = "features"
     CONTENT = "content"

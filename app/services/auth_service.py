@@ -9,8 +9,12 @@ from fastapi import HTTPException, status
 from app.models.user import User, UserRole
 from app.config import settings
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing - Support both PHP bcrypt ($2y$) and Python bcrypt ($2b$)
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__ident="2b"  # Use $2b$ for new hashes
+)
 
 
 class AuthService:
@@ -18,10 +22,16 @@ class AuthService:
     
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
-        """Verify a password against its hash - FIXED"""
+        """Verify a password against its hash - FIXED to support PHP bcrypt"""
         try:
-            # Ensure hashed_password is a string
-            hash_str = str(hashed_password) if not isinstance(hashed_password, str) else hashed_password
+            # Convert to string if needed
+            hash_str = str(hashed_password)
+            
+            # PHP uses $2y$, Python's passlib uses $2b$
+            # They're compatible, just replace the identifier
+            if hash_str.startswith('$2y$'):
+                hash_str = '$2b$' + hash_str[4:]
+            
             return pwd_context.verify(plain_password, hash_str)
         except Exception as e:
             print(f"Password verification error: {e}")

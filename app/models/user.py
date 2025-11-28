@@ -7,9 +7,8 @@ import enum
 
 
 class UserRole(str, enum.Enum):
-    """User roles - MUST match database enum values exactly"""
-    ADMIN = "admin"  # Changed from uppercase to lowercase to match DB
-    USER = "user"    # Changed from uppercase to lowercase to match DB
+    ADMIN = "admin" 
+    USER = "user"  
 
 
 class User(Base):
