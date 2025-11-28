@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
 from app.database import get_db
-from app.models.feedback import WebsiteFeedback, FeedbackCategory
+from app.models.feedback import WebsiteFeedback
 from app.schemas.feedback import FeedbackCreate, FeedbackResponse, FeedbackStats
 
 router = APIRouter()
@@ -15,17 +15,12 @@ router = APIRouter()
 async def submit_feedback(feedback: FeedbackCreate, db: Session = Depends(get_db)):
     """Submit website feedback - FIXED"""
     try:
-        # Handle enum conversion properly
-        if isinstance(feedback.category, str):
-            category_enum = FeedbackCategory(feedback.category.lower())
-        else:
-            category_enum = feedback.category
-        
+        # Create feedback with string category (no enum conversion needed)
         db_feedback = WebsiteFeedback(
             user_name=feedback.user_name,
             email=feedback.email,
             rating=feedback.rating,
-            category=category_enum,
+            category=feedback.category,  # Already a string
             feedback=feedback.feedback,
             is_public=True,
             is_read=False
@@ -35,20 +30,22 @@ async def submit_feedback(feedback: FeedbackCreate, db: Session = Depends(get_db
         db.commit()
         db.refresh(db_feedback)
         
-        return {
-            "id": db_feedback.id,
-            "user_name": db_feedback.user_name,
-            "email": db_feedback.email,
-            "rating": db_feedback.rating,
-            "category": db_feedback.category.value,
-            "feedback": db_feedback.feedback,
-            "is_public": db_feedback.is_public,
-            "is_read": db_feedback.is_read,
-            "created_at": db_feedback.created_at.isoformat()
-        }
+        # Return JSON response
+        return JSONResponse(
+            status_code=201,
+            content={
+                "id": db_feedback.id,
+                "user_name": db_feedback.user_name,
+                "email": db_feedback.email,
+                "rating": db_feedback.rating,
+                "category": db_feedback.category,
+                "feedback": db_feedback.feedback,
+                "is_public": db_feedback.is_public,
+                "is_read": db_feedback.is_read,
+                "created_at": str(db_feedback.created_at)
+            }
+        )
         
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid category: {str(e)}")
     except Exception as e:
         db.rollback()
         print(f"Feedback submission error: {e}")
@@ -71,14 +68,14 @@ async def get_public_feedback(limit: int = 10, db: Session = Depends(get_db)):
                 "user_name": fb.user_name,
                 "email": fb.email,
                 "rating": fb.rating,
-                "category": fb.category.value,  # Convert enum to string
+                "category": fb.category,  # Already a string
                 "feedback": fb.feedback,
                 "is_public": fb.is_public,
                 "is_read": fb.is_read,
-                "created_at": fb.created_at.isoformat()  # Convert datetime to string
+                "created_at": str(fb.created_at)
             })
         
-        return result
+        return JSONResponse(content=result)
         
     except Exception as e:
         print(f"Error fetching feedback: {e}")

@@ -1,5 +1,5 @@
 # app/models/feedback.py - Website Feedback Model (FIXED)
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, CheckConstraint, Enum
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, CheckConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -7,11 +7,12 @@ import enum
 
 
 class FeedbackCategory(str, enum.Enum):
-    USABILITY = "usability"
-    FEATURES = "features"
-    CONTENT = "content"
-    DESIGN = "design"
-    GENERAL = "general"
+    """Feedback categories - Values MUST match database exactly (lowercase)"""
+    usability = "usability"
+    features = "features"
+    content = "content"
+    design = "design"
+    general = "general"
 
 
 class WebsiteFeedback(Base):
@@ -22,7 +23,10 @@ class WebsiteFeedback(Base):
     user_name = Column(String(100), nullable=True)
     email = Column(String(100), nullable=True)
     rating = Column(Integer, nullable=False)
-    category = Column(Enum(FeedbackCategory), default=FeedbackCategory.GENERAL)
+    
+    # FIXED: Use String column instead of Enum to avoid SQLAlchemy validation issues
+    category = Column(String(20), default="general")
+    
     feedback = Column(Text, nullable=False)
     is_public = Column(Boolean, default=True)
     is_read = Column(Boolean, default=False)

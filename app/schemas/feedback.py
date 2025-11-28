@@ -1,15 +1,14 @@
-# app/schemas/feedback.py - Pydantic Schemas for Feedback
+# app/schemas/feedback.py - Pydantic Schemas for Feedback (FIXED)
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional
 from datetime import datetime
-from app.models.feedback import FeedbackCategory
 
 
 class FeedbackCreate(BaseModel):
     user_name: str = Field(..., max_length=100)
     email: Optional[EmailStr] = None
     rating: int = Field(..., ge=1, le=5)
-    category: FeedbackCategory = FeedbackCategory.GENERAL
+    category: str = Field(default="general")  # Accept string directly
     feedback: str = Field(..., min_length=10)
 
 
@@ -18,7 +17,7 @@ class FeedbackResponse(BaseModel):
     user_name: Optional[str]
     email: Optional[str]
     rating: int
-    category: FeedbackCategory
+    category: str  # Return as string
     feedback: str
     is_public: bool
     is_read: bool
