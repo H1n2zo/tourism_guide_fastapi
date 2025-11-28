@@ -26,18 +26,13 @@ async def register(
             password=user_data.password
         )
         
-        # Convert to dict to avoid SQLAlchemy issues
-        user_dict = {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
-            "role": user.role,
-            "created_at": user.created_at
-        }
-        
-        return JSONResponse(
-            status_code=status.HTTP_201_CREATED,
-            content=user_dict
+        # Convert datetime to string before JSON serialization
+        return UserResponse(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            role=user.role,
+            created_at=user.created_at  # Pydantic will handle this
         )
         
     except HTTPException as e:
@@ -78,25 +73,22 @@ async def login(
         # Store in session (for template-based pages)
         request.session["user_id"] = user.id
         request.session["username"] = user.username
-        request.session["role"] = user.role.value
+        request.session["role"] = user.role.value  # Convert enum to string
         request.session["logged_in"] = True
         
-        # Return proper response
-        return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content={
-                "user": {
-                    "id": user.id,
-                    "username": user.username,
-                    "email": user.email,
-                    "role": user.role.value,
-                    "created_at": str(user.created_at)
-                },
-                "token": {
-                    "access_token": access_token,
-                    "token_type": "bearer"
-                }
-            }
+        # Return properly formatted response
+        return UserWithToken(
+            user=UserResponse(
+                id=user.id,
+                username=user.username,
+                email=user.email,
+                role=user.role,
+                created_at=user.created_at
+            ),
+            token=Token(
+                access_token=access_token,
+                token_type="bearer"
+            )
         )
         
     except HTTPException as e:

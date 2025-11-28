@@ -15,8 +15,11 @@ router = APIRouter()
 async def submit_feedback(feedback: FeedbackCreate, db: Session = Depends(get_db)):
     """Submit website feedback - FIXED"""
     try:
-        # Convert string category to enum
-        category_enum = FeedbackCategory(feedback.category.value if hasattr(feedback.category, 'value') else feedback.category)
+        # Handle enum conversion properly
+        if isinstance(feedback.category, str):
+            category_enum = FeedbackCategory(feedback.category.lower())
+        else:
+            category_enum = feedback.category
         
         db_feedback = WebsiteFeedback(
             user_name=feedback.user_name,
@@ -32,21 +35,17 @@ async def submit_feedback(feedback: FeedbackCreate, db: Session = Depends(get_db
         db.commit()
         db.refresh(db_feedback)
         
-        # Return JSON response
-        return JSONResponse(
-            status_code=201,
-            content={
-                "id": db_feedback.id,
-                "user_name": db_feedback.user_name,
-                "email": db_feedback.email,
-                "rating": db_feedback.rating,
-                "category": db_feedback.category.value,
-                "feedback": db_feedback.feedback,
-                "is_public": db_feedback.is_public,
-                "is_read": db_feedback.is_read,
-                "created_at": str(db_feedback.created_at)
-            }
-        )
+        return {
+            "id": db_feedback.id,
+            "user_name": db_feedback.user_name,
+            "email": db_feedback.email,
+            "rating": db_feedback.rating,
+            "category": db_feedback.category.value,
+            "feedback": db_feedback.feedback,
+            "is_public": db_feedback.is_public,
+            "is_read": db_feedback.is_read,
+            "created_at": db_feedback.created_at.isoformat()
+        }
         
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Invalid category: {str(e)}")
@@ -72,14 +71,14 @@ async def get_public_feedback(limit: int = 10, db: Session = Depends(get_db)):
                 "user_name": fb.user_name,
                 "email": fb.email,
                 "rating": fb.rating,
-                "category": fb.category.value,
+                "category": fb.category.value,  # Convert enum to string
                 "feedback": fb.feedback,
                 "is_public": fb.is_public,
                 "is_read": fb.is_read,
-                "created_at": str(fb.created_at)
+                "created_at": fb.created_at.isoformat()  # Convert datetime to string
             })
         
-        return JSONResponse(content=result)
+        return result
         
     except Exception as e:
         print(f"Error fetching feedback: {e}")
