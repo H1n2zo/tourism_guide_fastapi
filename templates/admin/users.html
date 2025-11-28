@@ -1,0 +1,232 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Manage Users{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="fas fa-users"></i> Manage Users</h2>
+
+    <!-- Alert Container -->
+    <div id="alertContainer"></div>
+
+    <!-- Users Table -->
+    <div class="card">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-list"></i> All Users</h5>
+            <small id="totalUsers">Total: 0 users</small>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="usersTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Registered</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="6" class="text-center">
+                                <div class="spinner-border" role="status"></div>
+                                <p class="mt-2">Loading users...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Card -->
+    <div class="alert alert-info mt-4">
+        <h5><i class="fas fa-info-circle"></i> User Management Info</h5>
+        <ul class="mb-0">
+            <li>New users can register from the login page</li>
+            <li>Toggle role to change between Admin and User</li>
+            <li>You cannot delete or modify your own account from this page</li>
+            <li>Admins have access to the admin panel and can manage content</li>
+            <li>Regular users can only view the public site and submit reviews</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let users = [];
+    let currentUserId = null;
+    
+    // Get current user ID from session
+    async function getCurrentUser() {
+        try {
+            const response = await fetch('/api/auth/check-session');
+            const data = await response.json();
+            if (data.logged_in) {
+                currentUserId = data.user_id;
+            }
+        } catch (error) {
+            console.error('Error getting current user:', error);
+        }
+    }
+    
+    // Load users
+    async function loadUsers() {
+        try {
+            showLoading();
+            
+            await getCurrentUser();
+            
+            const response = await fetch('/api/admin/users', {
+                headers: getAuthHeaders()
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to load users');
+            }
+            
+            users = await response.json();
+            
+            document.getElementById('totalUsers').textContent = `Total: ${users.length} users`;
+            displayUsers();
+            
+        } catch (error) {
+            console.error('Error loading users:', error);
+            showAlert('error', 'Error loading users. Please refresh the page.');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    // Display users
+    function displayUsers() {
+        const tbody = document.querySelector('#usersTable tbody');
+        
+        if (!users || users.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-5">
+                        <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                        <p>No users found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = users.map(user => {
+            const isCurrentUser = user.id === currentUserId;
+            
+            return `
+                <tr>
+                    <td>${user.id}</td>
+                    <td>
+                        <strong>${user.username}</strong>
+                        ${isCurrentUser ? '<span class="badge bg-info ms-2">You</span>' : ''}
+                    </td>
+                    <td>${user.email || '<span class="text-muted">No email</span>'}</td>
+                    <td>
+                        ${user.role === 'admin' 
+                            ? '<span class="badge bg-danger"><i class="fas fa-shield-alt"></i> Admin</span>' 
+                            : '<span class="badge bg-secondary"><i class="fas fa-user"></i> User</span>'
+                        }
+                    </td>
+                    <td><small>${formatDate(user.created_at)}</small></td>
+                    <td class="table-actions">
+                        ${!isCurrentUser ? `
+                            <button class="btn btn-sm btn-warning" 
+                                    onclick="toggleRole(${user.id}, '${user.username.replace(/'/g, "\\'")}', '${user.role}')" 
+                                    title="Toggle Role">
+                                <i class="fas fa-exchange-alt"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" 
+                                    onclick="deleteUser(${user.id}, '${user.username.replace(/'/g, "\\'")}', '${user.role}')" 
+                                    title="Delete User">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : `
+                            <span class="text-muted">
+                                <i class="fas fa-lock"></i> Protected
+                            </span>
+                        `}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+    
+    // Toggle user role
+    async function toggleRole(id, username, currentRole) {
+        const newRole = currentRole === 'admin' ? 'user' : 'admin';
+        
+        if (!confirm(`Change ${username}'s role from ${currentRole} to ${newRole}?`)) {
+            return;
+        }
+        
+        try {
+            showLoading();
+            
+            const response = await fetch(`/api/admin/users/${id}/toggle-role`, {
+                method: 'PATCH',
+                headers: getAuthHeaders()
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to toggle role');
+            }
+            
+            showAlert('success', `User role updated to ${newRole}!`);
+            loadUsers();
+            
+        } catch (error) {
+            console.error('Error toggling role:', error);
+            showAlert('error', error.message || 'Error updating role. Please try again.');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    // Delete user
+    async function deleteUser(id, username, role) {
+        if (role === 'admin') {
+            if (!confirm(`⚠️ WARNING: You are about to delete an ADMIN account (${username}). This will remove all their permissions. Continue?`)) {
+                return;
+            }
+        }
+        
+        if (!confirmDelete(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) {
+            return;
+        }
+        
+        try {
+            showLoading();
+            
+            const response = await fetch(`/api/admin/users/${id}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to delete user');
+            }
+            
+            showAlert('success', 'User deleted successfully!');
+            loadUsers();
+            
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            showAlert('error', error.message || 'Error deleting user. Please try again.');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    // Load users on page ready
+    document.addEventListener('DOMContentLoaded', loadUsers);
+</script>
+{% endblock %}

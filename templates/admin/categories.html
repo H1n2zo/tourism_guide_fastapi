@@ -1,0 +1,280 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Manage Categories{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="fas fa-tags"></i> Manage Categories</h2>
+
+    <!-- Alert Container -->
+    <div id="alertContainer"></div>
+
+    <div class="row">
+        <!-- Add/Edit Form -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0" id="formTitle"><i class="fas fa-plus"></i> Add Category</h5>
+                </div>
+                <div class="card-body">
+                    <form id="categoryForm">
+                        <input type="hidden" id="editId">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Category Name *</label>
+                            <input type="text" class="form-control" id="categoryName" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Icon *</label>
+                            <select class="form-select" id="categoryIcon" required onchange="updateIconPreview()">
+                                <option value="">Select Icon</option>
+                                <option value="fa-camera">📷 Camera (Tourist Spot)</option>
+                                <option value="fa-utensils">🍴 Restaurant</option>
+                                <option value="fa-bed">🛏️ Hotel</option>
+                                <option value="fa-bus">🚌 Transport</option>
+                                <option value="fa-landmark">🏛️ Landmark</option>
+                                <option value="fa-tree">🌲 Nature</option>
+                                <option value="fa-shopping-bag">🛍️ Shopping</option>
+                                <option value="fa-film">🎬 Entertainment</option>
+                                <option value="fa-church">⛪ Church</option>
+                                <option value="fa-building">🏢 Building</option>
+                                <option value="fa-monument">🗿 Monument</option>
+                                <option value="fa-water">🌊 Beach</option>
+                                <option value="fa-mountain">⛰️ Mountain</option>
+                                <option value="fa-coffee">☕ Cafe</option>
+                                <option value="fa-music">🎵 Music</option>
+                                <option value="fa-palette">🎨 Art</option>
+                                <option value="fa-heart">❤️ Favorite</option>
+                                <option value="fa-toilet">🚻 Comfort Room</option>
+                            </select>
+                            <div class="text-center mt-3">
+                                <div class="icon-preview" id="iconPreview" style="font-size: 2rem; padding: 10px; background: #f8f9fa; border-radius: 5px; display: inline-block;">
+                                    <i class="fas fa-question"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-save"></i> <span id="submitText">Save Category</span>
+                        </button>
+                        <button type="button" class="btn btn-secondary w-100 mt-2" onclick="resetForm()" id="cancelBtn" style="display:none;">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Categories List -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="fas fa-list"></i> All Categories</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="categoriesTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Icon</th>
+                                    <th>Name</th>
+                                    <th>Destinations</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="4" class="text-center">
+                                        <div class="spinner-border" role="status"></div>
+                                        <p class="mt-2">Loading categories...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let categories = [];
+    
+    // Load categories
+    async function loadCategories() {
+        try {
+            showLoading();
+            
+            const response = await fetch('/api/categories/');
+            categories = await response.json();
+            
+            displayCategories();
+            
+        } catch (error) {
+            console.error('Error loading categories:', error);
+            showAlert('error', 'Error loading categories. Please refresh the page.');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    // Display categories
+    function displayCategories() {
+        const tbody = document.querySelector('#categoriesTable tbody');
+        
+        if (!categories || categories.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-5">
+                        <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                        <p>No categories yet</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = categories.map(cat => `
+            <tr>
+                <td>
+                    <div style="font-size: 1.5rem; padding: 5px; background: #f8f9fa; border-radius: 5px; display: inline-block;">
+                        <i class="fas ${cat.icon}"></i>
+                    </div>
+                </td>
+                <td><strong>${cat.name}</strong></td>
+                <td>
+                    <span class="badge bg-info">${cat.destination_count || 0} destinations</span>
+                </td>
+                <td class="table-actions">
+                    <button class="btn btn-sm btn-primary" onclick='editCategory(${JSON.stringify(cat)})'>
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    ${cat.destination_count === 0 ? `
+                        <button class="btn btn-sm btn-danger" onclick="deleteCategory(${cat.id}, '${cat.name.replace(/'/g, "\\'")}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    ` : `
+                        <button class="btn btn-sm btn-secondary" disabled title="Cannot delete category with destinations">
+                            <i class="fas fa-lock"></i>
+                        </button>
+                    `}
+                </td>
+            </tr>
+        `).join('');
+    }
+    
+    // Update icon preview
+    function updateIconPreview() {
+        const icon = document.getElementById('categoryIcon').value;
+        const preview = document.getElementById('iconPreview');
+        
+        if (icon) {
+            preview.innerHTML = `<i class="fas ${icon}"></i>`;
+        } else {
+            preview.innerHTML = '<i class="fas fa-question"></i>';
+        }
+    }
+    
+    // Edit category
+    function editCategory(cat) {
+        document.getElementById('editId').value = cat.id;
+        document.getElementById('categoryName').value = cat.name;
+        document.getElementById('categoryIcon').value = cat.icon;
+        
+        document.getElementById('formTitle').innerHTML = '<i class="fas fa-edit"></i> Edit Category';
+        document.getElementById('submitText').textContent = 'Update Category';
+        document.getElementById('cancelBtn').style.display = 'block';
+        
+        updateIconPreview();
+    }
+    
+    // Reset form
+    function resetForm() {
+        document.getElementById('categoryForm').reset();
+        document.getElementById('editId').value = '';
+        document.getElementById('formTitle').innerHTML = '<i class="fas fa-plus"></i> Add Category';
+        document.getElementById('submitText').textContent = 'Save Category';
+        document.getElementById('cancelBtn').style.display = 'none';
+        updateIconPreview();
+    }
+    
+    // Submit form
+    document.getElementById('categoryForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const editId = document.getElementById('editId').value;
+        const formData = new FormData();
+        
+        formData.append('name', document.getElementById('categoryName').value);
+        formData.append('icon', document.getElementById('categoryIcon').value);
+        
+        try {
+            showLoading();
+            
+            const url = editId 
+                ? `/api/admin/categories/${editId}` 
+                : '/api/admin/categories';
+            
+            const method = editId ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method: method,
+                headers: getAuthHeaders(),
+                body: formData
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to save category');
+            }
+            
+            showAlert('success', `Category ${editId ? 'updated' : 'created'} successfully!`);
+            resetForm();
+            loadCategories();
+            
+        } catch (error) {
+            console.error('Error saving category:', error);
+            showAlert('error', error.message || 'Error saving category. Please try again.');
+        } finally {
+            hideLoading();
+        }
+    });
+    
+    // Delete category
+    async function deleteCategory(id, name) {
+        if (!confirmDelete(`Are you sure you want to delete "${name}"?`)) {
+            return;
+        }
+        
+        try {
+            showLoading();
+            
+            const response = await fetch(`/api/admin/categories/${id}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to delete category');
+            }
+            
+            showAlert('success', 'Category deleted successfully!');
+            loadCategories();
+            
+        } catch (error) {
+            console.error('Error deleting category:', error);
+            showAlert('error', error.message || 'Error deleting category. Please try again.');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    // Load on page ready
+    document.addEventListener('DOMContentLoaded', loadCategories);
+</script>
+{% endblock %}

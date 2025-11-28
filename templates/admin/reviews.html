@@ -1,0 +1,442 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Reviews & Feedback{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="fas fa-star"></i> Reviews & Feedback Management</h2>
+
+    <!-- Alert Container -->
+    <div id="alertContainer"></div>
+
+    <!-- Statistics -->
+    <div class="row mb-4" id="statsCards">
+        <div class="col-md-3">
+            <div class="card stat-card primary">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Reviews</h6>
+                    <h2 id="totalReviews">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card warning">
+                <div class="card-body">
+                    <h6 class="text-muted">Pending Reviews</h6>
+                    <h2 id="pendingReviews">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card success">
+                <div class="card-body">
+                    <h6 class="text-muted">Website Feedback</h6>
+                    <h2 id="totalFeedback">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card info">
+                <div class="card-body">
+                    <h6 class="text-muted">Avg Rating</h6>
+                    <h2 id="avgRating">N/A</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#reviews" type="button">
+                <i class="fas fa-comments"></i> Destination Reviews
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#feedback" type="button">
+                <i class="fas fa-comment-dots"></i> Website Feedback
+                <span class="badge bg-danger ms-2" id="unreadBadge" style="display:none;"></span>
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- Reviews Tab -->
+        <div class="tab-pane fade show active" id="reviews">
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="reviewsTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Destination</th>
+                                    <th>User</th>
+                                    <th>Rating</th>
+                                    <th>Comment</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="7" class="text-center">
+                                        <div class="spinner-border" role="status"></div>
+                                        <p class="mt-2">Loading reviews...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback Tab -->
+        <div class="tab-pane fade" id="feedback">
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="feedbackTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>Rating</th>
+                                    <th>Feedback</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="7" class="text-center">
+                                        <div class="spinner-border" role="status"></div>
+                                        <p class="mt-2">Loading feedback...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Feedback Detail Modal -->
+<div class="modal fade" id="feedbackModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Feedback Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let reviews = [];
+    let feedbacks = [];
+    let allDestinations = [];
+    
+    // Load all data
+    async function loadAllData() {
+        try {
+            showLoading();
+            
+            // Load stats
+            const statsResponse = await fetch('/api/admin/dashboard/stats', {
+                headers: getAuthHeaders()
+            });
+            const stats = await statsResponse.json();
+            
+            // Update stats
+            document.getElementById('totalReviews').textContent = stats.total_reviews || 0;
+            document.getElementById('pendingReviews').textContent = stats.pending_reviews || 0;
+            document.getElementById('totalFeedback').textContent = stats.total_feedback || 0;
+            document.getElementById('avgRating').textContent = 'N/A';
+            
+            if (stats.unread_feedback > 0) {
+                const badge = document.getElementById('unreadBadge');
+                badge.textContent = stats.unread_feedback;
+                badge.style.display = 'inline';
+            }
+            
+            // Load destinations for lookup
+            const destResponse = await fetch('/api/destinations/?page_size=100');
+            const destData = await destResponse.json();
+            allDestinations = destData.destinations;
+            
+            // Load reviews and feedback
+            await loadReviews();
+            await loadFeedback();
+            
+        } catch (error) {
+            console.error('Error loading data:', error);
+            showAlert('error', 'Error loading data. Please refresh the page.');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    // Load reviews
+    async function loadReviews() {
+        try {
+            // Note: Need to add an endpoint to get all reviews
+            // For now, we'll load reviews for each destination
+            reviews = [];
+            
+            for (const dest of allDestinations) {
+                const response = await fetch(`/api/reviews/destination/${dest.id}`);
+                const destReviews = await response.json();
+                reviews.push(...destReviews.map(r => ({...r, destination_name: dest.name})));
+            }
+            
+            displayReviews();
+            
+        } catch (error) {
+            console.error('Error loading reviews:', error);
+        }
+    }
+    
+    // Display reviews
+    function displayReviews() {
+        const tbody = document.querySelector('#reviewsTable tbody');
+        
+        if (!reviews || reviews.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-5">
+                        <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                        <p>No reviews yet</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = reviews.map(review => `
+            <tr>
+                <td><strong>${review.destination_name || 'Unknown'}</strong></td>
+                <td>${review.user_name || 'Anonymous'}</td>
+                <td>
+                    <div style="color: #ffc107;">
+                        ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}
+                    </div>
+                </td>
+                <td>${(review.comment || '').substring(0, 50)}${review.comment && review.comment.length > 50 ? '...' : ''}</td>
+                <td><small>${formatDate(review.created_at)}</small></td>
+                <td>
+                    ${review.is_approved 
+                        ? '<span class="badge bg-success">Approved</span>' 
+                        : '<span class="badge bg-warning">Pending</span>'
+                    }
+                </td>
+                <td class="table-actions">
+                    <a href="/destination/${review.destination_id}" class="btn btn-sm btn-info" target="_blank" title="View">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                    <button class="btn btn-sm btn-warning" onclick="toggleReview(${review.id})" title="Toggle Approval">
+                        <i class="fas fa-toggle-on"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteReview(${review.id})" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+    
+    // Load feedback
+    async function loadFeedback() {
+        try {
+            const response = await fetch('/api/admin/feedback', {
+                headers: getAuthHeaders()
+            });
+            feedbacks = await response.json();
+            
+            displayFeedback();
+            
+        } catch (error) {
+            console.error('Error loading feedback:', error);
+        }
+    }
+    
+    // Display feedback
+    function displayFeedback() {
+        const tbody = document.querySelector('#feedbackTable tbody');
+        
+        if (!feedbacks || feedbacks.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-5">
+                        <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                        <p>No feedback yet</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = feedbacks.map(fb => `
+            <tr class="${!fb.is_read ? 'table-warning' : ''}">
+                <td>
+                    <strong>${fb.user_name}</strong>
+                    ${fb.email ? `<br><small>${fb.email}</small>` : ''}
+                </td>
+                <td><span class="badge bg-secondary">${fb.category}</span></td>
+                <td>
+                    <div style="color: #ffc107;">
+                        ${'★'.repeat(fb.rating)}${'☆'.repeat(5 - fb.rating)}
+                    </div>
+                </td>
+                <td>${fb.feedback.substring(0, 60)}${fb.feedback.length > 60 ? '...' : ''}</td>
+                <td><small>${formatDate(fb.created_at)}</small></td>
+                <td>
+                    ${fb.is_read 
+                        ? '<span class="badge bg-success">Read</span>' 
+                        : '<span class="badge bg-warning">New</span>'
+                    }
+                </td>
+                <td class="table-actions">
+                    ${!fb.is_read ? `
+                        <button class="btn btn-sm btn-success" onclick="markRead(${fb.id})" title="Mark as Read">
+                            <i class="fas fa-check"></i>
+                        </button>
+                    ` : ''}
+                    <button class="btn btn-sm btn-info" onclick="viewFeedback(${JSON.stringify(fb).replace(/"/g, '&quot;')})" title="View Details">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteFeedback(${fb.id})" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+    
+    // Toggle review approval
+    async function toggleReview(id) {
+        try {
+            showLoading();
+            
+            const response = await fetch(`/api/admin/reviews/${id}/toggle`, {
+                method: 'PATCH',
+                headers: getAuthHeaders()
+            });
+            
+            if (!response.ok) throw new Error('Failed to toggle review');
+            
+            showAlert('success', 'Review status updated!');
+            loadReviews();
+            
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('error', 'Error updating review. Please try again.');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    // Delete review
+    async function deleteReview(id) {
+        if (!confirmDelete('Are you sure you want to delete this review?')) return;
+        
+        try {
+            showLoading();
+            
+            const response = await fetch(`/api/admin/reviews/${id}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            
+            if (!response.ok) throw new Error('Failed to delete review');
+            
+            showAlert('success', 'Review deleted successfully!');
+            loadReviews();
+            
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('error', 'Error deleting review. Please try again.');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    // Mark feedback as read
+    async function markRead(id) {
+        try {
+            showLoading();
+            
+            const response = await fetch(`/api/admin/feedback/${id}/read`, {
+                method: 'PATCH',
+                headers: getAuthHeaders()
+            });
+            
+            if (!response.ok) throw new Error('Failed to mark as read');
+            
+            loadFeedback();
+            loadAllData(); // Refresh unread count
+            
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('error', 'Error marking feedback as read.');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    // View feedback details
+    function viewFeedback(fb) {
+        const modalBody = document.getElementById('modalBody');
+        
+        modalBody.innerHTML = `
+            <p><strong>From:</strong> ${fb.user_name}</p>
+            ${fb.email ? `<p><strong>Email:</strong> ${fb.email}</p>` : ''}
+            <p><strong>Category:</strong> ${fb.category}</p>
+            <p><strong>Rating:</strong> <span style="color: #ffc107;">${'★'.repeat(fb.rating)}${'☆'.repeat(5 - fb.rating)}</span></p>
+            <p><strong>Date:</strong> ${formatDateTime(fb.created_at)}</p>
+            <hr>
+            <p><strong>Feedback:</strong></p>
+            <p>${fb.feedback.replace(/\n/g, '<br>')}</p>
+        `;
+        
+        const modal = new bootstrap.Modal(document.getElementById('feedbackModal'));
+        modal.show();
+    }
+    
+    // Delete feedback
+    async function deleteFeedback(id) {
+        if (!confirmDelete('Are you sure you want to delete this feedback?')) return;
+        
+        try {
+            showLoading();
+            
+            const response = await fetch(`/api/admin/feedback/${id}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            
+            if (!response.ok) throw new Error('Failed to delete feedback');
+            
+            showAlert('success', 'Feedback deleted successfully!');
+            loadFeedback();
+            
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('error', 'Error deleting feedback. Please try again.');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    // Load on page ready
+    document.addEventListener('DOMContentLoaded', loadAllData);
+</script>
+{% endblock %}
