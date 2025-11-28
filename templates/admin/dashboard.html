@@ -1,0 +1,301 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-tachometer-alt"></i> Dashboard</h2>
+        <span class="text-muted" id="lastUpdated">Last updated: Loading...</span>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4" id="statsCards">
+        <!-- Loading skeleton -->
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card primary">
+                <div class="card-body">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                    <span class="ms-2">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <a href="/admin/destinations/add" class="btn btn-primary me-2">
+                        <i class="fas fa-plus"></i> Add Destination
+                    </a>
+                    <a href="/admin/categories" class="btn btn-success me-2">
+                        <i class="fas fa-plus"></i> Add Category
+                    </a>
+                    <a href="/admin/routes" class="btn btn-info me-2">
+                        <i class="fas fa-plus"></i> Add Route
+                    </a>
+                    <a href="/admin/destinations" class="btn btn-warning">
+                        <i class="fas fa-cog"></i> Manage Destinations
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Destinations -->
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-clock"></i> Recent Destinations</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="recentTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="5" class="text-center">
+                                <div class="spinner-border" role="status"></div>
+                                <p class="mt-2">Loading recent destinations...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <a href="/admin/destinations" class="btn btn-primary">
+                <i class="fas fa-arrow-right"></i> View All Destinations
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let stats = {};
+    
+    // Load dashboard data
+    async function loadDashboard() {
+        try {
+            showLoading();
+            
+            const response = await fetch('/api/admin/dashboard/stats', {
+                headers: getAuthHeaders()
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to load dashboard stats');
+            }
+            
+            stats = await response.json();
+            
+            displayStats();
+            displayRecentDestinations();
+            
+            document.getElementById('lastUpdated').textContent = 
+                'Last updated: ' + new Date().toLocaleTimeString();
+            
+        } catch (error) {
+            console.error('Error loading dashboard:', error);
+            showAlert('error', 'Error loading dashboard data. Please refresh the page.');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    // Display statistics cards
+    function displayStats() {
+        const container = document.getElementById('statsCards');
+        
+        container.innerHTML = `
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card primary">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-0">Total Destinations</h6>
+                                <h2 class="mb-0">${stats.total_destinations || 0}</h2>
+                            </div>
+                            <div class="text-primary" style="font-size: 2.5rem;">
+                                <i class="fas fa-map-pin"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card success">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-0">Active Destinations</h6>
+                                <h2 class="mb-0">${stats.active_destinations || 0}</h2>
+                            </div>
+                            <div class="text-success" style="font-size: 2.5rem;">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card warning">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-0">Categories</h6>
+                                <h2 class="mb-0">${stats.total_categories || 0}</h2>
+                            </div>
+                            <div class="text-warning" style="font-size: 2.5rem;">
+                                <i class="fas fa-tags"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card info">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-0">Routes</h6>
+                                <h2 class="mb-0">${stats.total_routes || 0}</h2>
+                            </div>
+                            <div class="text-info" style="font-size: 2.5rem;">
+                                <i class="fas fa-route"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card primary">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-0">Total Reviews</h6>
+                                <h2 class="mb-0">${stats.total_reviews || 0}</h2>
+                            </div>
+                            <div class="text-primary" style="font-size: 2.5rem;">
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card warning">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-0">Pending Reviews</h6>
+                                <h2 class="mb-0">${stats.pending_reviews || 0}</h2>
+                                ${stats.pending_reviews > 0 ? '<span class="badge bg-warning badge-new">New</span>' : ''}
+                            </div>
+                            <div class="text-warning" style="font-size: 2.5rem;">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card success">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-0">Total Feedback</h6>
+                                <h2 class="mb-0">${stats.total_feedback || 0}</h2>
+                            </div>
+                            <div class="text-success" style="font-size: 2.5rem;">
+                                <i class="fas fa-comments"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card danger">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-0">Unread Feedback</h6>
+                                <h2 class="mb-0">${stats.unread_feedback || 0}</h2>
+                                ${stats.unread_feedback > 0 ? '<span class="badge bg-danger badge-new">New</span>' : ''}
+                            </div>
+                            <div class="text-danger" style="font-size: 2.5rem;">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Display recent destinations
+    function displayRecentDestinations() {
+        const tbody = document.querySelector('#recentTable tbody');
+        
+        if (!stats.recent_destinations || stats.recent_destinations.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-muted">
+                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                        <p>No destinations yet</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = stats.recent_destinations.map(dest => `
+            <tr>
+                <td>${dest.id}</td>
+                <td><strong>${dest.name}</strong></td>
+                <td>
+                    ${dest.is_active 
+                        ? '<span class="badge bg-success">Active</span>' 
+                        : '<span class="badge bg-danger">Inactive</span>'
+                    }
+                </td>
+                <td>${formatDate(dest.created_at)}</td>
+                <td class="table-actions">
+                    <a href="/admin/destinations/edit/${dest.id}" class="btn btn-sm btn-primary" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <a href="/destination/${dest.id}" class="btn btn-sm btn-info" title="View" target="_blank">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                </td>
+            </tr>
+        `).join('');
+    }
+    
+    // Load dashboard on page load
+    document.addEventListener('DOMContentLoaded', loadDashboard);
+    
+    // Auto-refresh every 5 minutes
+    setInterval(loadDashboard, 5 * 60 * 1000);
+</script>
+{% endblock %}
