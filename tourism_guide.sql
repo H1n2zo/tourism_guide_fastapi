@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 22, 2025 at 01:37 PM
+-- Generation Time: Nov 28, 2025 at 03:14 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -177,8 +177,7 @@ INSERT INTO `reviews` (`id`, `destination_id`, `user_id`, `user_name`, `rating`,
 (11, 8, NULL, 'Maria Santos', 3, 'Lake Danao is absolutely breathtaking! Perfect for a peaceful getaway. The guitar shape is amazing from the viewpoint.', 1, '2024-10-15 02:30:00'),
 (12, 11, NULL, 'HinzoHana', 2, 'Wews', 1, '2025-11-05 08:43:11'),
 (13, 15, NULL, 'Sample', 5, 'Sample rate', 1, '2025-11-05 08:57:17'),
-(14, 11, NULL, 'Hello', 5, 'sample 2 ratings', 1, '2025-11-05 08:58:44'),
-(17, 11, NULL, 'hh', 2, 'ff', 1, '2025-11-22 12:30:01');
+(14, 11, NULL, 'Hello', 5, 'sample 2 ratings', 0, '2025-11-05 08:58:44');
 
 -- --------------------------------------------------------
 
@@ -221,7 +220,7 @@ CREATE TABLE `users` (
   `username` varchar(50) NOT NULL,
   `password` varchar(255) NOT NULL,
   `email` varchar(100) DEFAULT NULL,
-  `role` enum('admin','user') DEFAULT 'user',
+  `role` enum('ADMIN','USER') DEFAULT 'USER',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -230,9 +229,9 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `password`, `email`, `role`, `created_at`) VALUES
-(1, 'Admin', '$2y$10$1Rx1ytdO.DDgmbcZ3n0MBet/I3haMLn8IAc6NwUj/szZPuIjW7of.', 'admin@tourism.com', 'admin', '2025-11-10 02:03:29'),
-(2, 'Hans', '$2y$10$/ADtH0gaUpSr8ox4ihu2vOcwwsZWwLg8I5vNh6JJmlJSGzgTpd7x6', 'hansmichael.2005.gabor@gmail.com', 'user', '2025-11-05 00:31:38'),
-(7, 'Jessha', '$2y$10$UHxAWjNSmRQZDICCSLOE6.HNvR3SDQ9ciHtVfo1PqDAflYHUWgk16', 'jessha@gmail.com', 'user', '2025-11-22 12:21:44');
+(1, 'Admin', '$2y$10$1Rx1ytdO.DDgmbcZ3n0MBet/I3haMLn8IAc6NwUj/szZPuIjW7of.', 'admin@tourism.com', 'ADMIN', '2025-11-10 02:03:29'),
+(2, 'Hans', '$2y$10$/ADtH0gaUpSr8ox4ihu2vOcwwsZWwLg8I5vNh6JJmlJSGzgTpd7x6', 'hansmichael.2005.gabor@gmail.com', 'USER', '2025-11-05 00:31:38'),
+(7, 'Jessha', '$2y$10$UHxAWjNSmRQZDICCSLOE6.HNvR3SDQ9ciHtVfo1PqDAflYHUWgk16', 'jessha@gmail.com', 'USER', '2025-11-22 12:21:44');
 
 -- --------------------------------------------------------
 
@@ -258,11 +257,7 @@ CREATE TABLE `website_feedback` (
 --
 
 INSERT INTO `website_feedback` (`id`, `user_id`, `user_name`, `email`, `rating`, `category`, `feedback`, `is_public`, `is_read`, `created_at`) VALUES
-(2, NULL, 'Admin', 'ad@gmail.com', 2, 'features', 'damn', 1, 0, '2025-11-05 08:10:13'),
-(3, NULL, 'Admin', 'ad@gmail.com', 3, 'features', 'again', 1, 1, '2025-11-05 08:10:31'),
 (4, 1, 'Admin', 'admin@tourism.com', 5, 'general', 'Im very satisfied', 1, 0, '2025-11-10 04:48:43'),
-(5, NULL, 'd', 'hansmichael.gabor@evsu.edu.ph', 2, 'general', 'ddffffffffffff', 1, 0, '2025-11-11 17:45:10'),
-(6, NULL, 'd', 'hansmichael.gabor@evsu.edu.ph', 2, 'general', 'ddffffffffffff', 1, 0, '2025-11-11 17:45:13'),
 (7, NULL, 'Admin', 'hansmichael.gabor@evsu.edu.ph', 1, 'general', 'Error in recent feedback from visitors and map not showing directions', 1, 1, '2025-11-12 00:07:05');
 
 -- --------------------------------------------------------
@@ -357,7 +352,7 @@ ALTER TABLE `destination_images`
 -- AUTO_INCREMENT for table `reviews`
 --
 ALTER TABLE `reviews`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT for table `routes`
@@ -369,13 +364,13 @@ ALTER TABLE `routes`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `website_feedback`
 --
 ALTER TABLE `website_feedback`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- Constraints for dumped tables
