@@ -1,0 +1,342 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Manage Routes{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="fas fa-route"></i> Manage Routes</h2>
+
+    <!-- Alert Container -->
+    <div id="alertContainer"></div>
+
+    <!-- Add/Edit Form -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0" id="formTitle"><i class="fas fa-plus"></i> Add New Route</h5>
+        </div>
+        <div class="card-body">
+            <form id="routeForm">
+                <input type="hidden" id="editId">
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Route Name</label>
+                        <input type="text" class="form-control" id="routeName" 
+                               placeholder="e.g., Terminal to Lake Danao">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Transport Mode *</label>
+                        <select class="form-select" id="transportMode" required>
+                            <option value="">Select Mode</option>
+                            <option value="jeepney">🚌 Jeepney</option>
+                            <option value="taxi">🚕 Taxi</option>
+                            <option value="bus">🚍 Bus</option>
+                            <option value="van">🚐 Van</option>
+                            <option value="tricycle">🛺 Tricycle</option>
+                            <option value="walking">🚶 Walking</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Origin *</label>
+                        <select class="form-select" id="originId" required>
+                            <option value="">Select Origin</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Destination *</label>
+                        <select class="form-select" id="destinationId" required>
+                            <option value="">Select Destination</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Distance (km)</label>
+                        <input type="number" class="form-control" id="distanceKm" step="0.1" placeholder="0.00">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Est. Time (min)</label>
+                        <input type="number" class="form-control" id="estimatedTime" placeholder="0">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Base Fare (PHP)</label>
+                        <input type="number" class="form-control" id="baseFare" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Fare per km (PHP)</label>
+                        <input type="number" class="form-control" id="farePerKm" step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" id="description" rows="2" 
+                              placeholder="Optional route notes or instructions"></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="isActive" checked>
+                        <label class="form-check-label">Active</label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> <span id="submitText">Save Route</span>
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="resetForm()" id="cancelBtn" style="display:none;">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Routes List -->
+    <div class="card">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0"><i class="fas fa-list"></i> All Routes</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="routesTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Route</th>
+                            <th>Transport</th>
+                            <th>Distance</th>
+                            <th>Time</th>
+                            <th>Fare</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="7" class="text-center">
+                                <div class="spinner-border" role="status"></div>
+                                <p class="mt-2">Loading routes...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let routes = [];
+    let destinations = [];
+    
+    // Load all data
+    async function loadAllData() {
+        try {
+            showLoading();
+            
+            // Load routes
+            const routesResponse = await fetch('/api/routes/');
+            routes = await routesResponse.json();
+            
+            // Load destinations for dropdowns
+            const destResponse = await fetch('/api/destinations/?page_size=100');
+            const destData = await destResponse.json();
+            destinations = destData.destinations;
+            
+            populateDestinationDropdowns();
+            displayRoutes();
+            
+        } catch (error) {
+            console.error('Error loading data:', error);
+            showAlert('error', 'Error loading routes. Please refresh the page.');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    // Populate destination dropdowns
+    function populateDestinationDropdowns() {
+        const originSelect = document.getElementById('originId');
+        const destSelect = document.getElementById('destinationId');
+        
+        destinations.forEach(dest => {
+            const option1 = document.createElement('option');
+            option1.value = dest.id;
+            option1.textContent = dest.name;
+            originSelect.appendChild(option1);
+            
+            const option2 = document.createElement('option');
+            option2.value = dest.id;
+            option2.textContent = dest.name;
+            destSelect.appendChild(option2);
+        });
+    }
+    
+    // Display routes
+    function displayRoutes() {
+        const tbody = document.querySelector('#routesTable tbody');
+        
+        if (!routes || routes.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-5">
+                        <i class="fas fa-route fa-3x mb-3 d-block"></i>
+                        <p>No routes yet</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = routes.map(route => {
+            const routeName = route.route_name || `${route.origin_name || 'Unknown'} to ${route.destination_name || 'Unknown'}`;
+            const totalFare = route.total_fare ? `₱${parseFloat(route.total_fare).toFixed(2)}` : 'N/A';
+            
+            return `
+                <tr>
+                    <td>
+                        <strong>${routeName}</strong><br>
+                        <small class="text-muted">
+                            <i class="fas fa-map-marker-alt"></i> ${route.origin_name || 'N/A'} 
+                            → ${route.destination_name || 'N/A'}
+                        </small>
+                        ${route.description ? `<br><small class="text-info"><i class="fas fa-info-circle"></i> ${route.description.substring(0, 50)}${route.description.length > 50 ? '...' : ''}</small>` : ''}
+                    </td>
+                    <td><span class="badge bg-info">${route.transport_mode}</span></td>
+                    <td>${route.distance_km ? `${parseFloat(route.distance_km).toFixed(1)} km` : 'N/A'}</td>
+                    <td>${route.estimated_time_minutes ? `${route.estimated_time_minutes} min` : 'N/A'}</td>
+                    <td>${totalFare}</td>
+                    <td>
+                        ${route.is_active 
+                            ? '<span class="badge bg-success">Active</span>' 
+                            : '<span class="badge bg-danger">Inactive</span>'
+                        }
+                    </td>
+                    <td class="table-actions">
+                        <button class="btn btn-sm btn-primary" onclick='editRoute(${JSON.stringify(route)})'>
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteRoute(${route.id}, '${routeName.replace(/'/g, "\\'")}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+    
+    // Edit route
+    function editRoute(route) {
+        document.getElementById('editId').value = route.id;
+        document.getElementById('routeName').value = route.route_name || '';
+        document.getElementById('transportMode').value = route.transport_mode;
+        document.getElementById('originId').value = route.origin_id;
+        document.getElementById('destinationId').value = route.destination_id;
+        document.getElementById('distanceKm').value = route.distance_km || '';
+        document.getElementById('estimatedTime').value = route.estimated_time_minutes || '';
+        document.getElementById('baseFare').value = route.base_fare || '';
+        document.getElementById('farePerKm').value = route.fare_per_km || '';
+        document.getElementById('description').value = route.description || '';
+        document.getElementById('isActive').checked = route.is_active;
+        
+        document.getElementById('formTitle').innerHTML = '<i class="fas fa-edit"></i> Edit Route';
+        document.getElementById('submitText').textContent = 'Update Route';
+        document.getElementById('cancelBtn').style.display = 'inline-block';
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
+    // Reset form
+    function resetForm() {
+        document.getElementById('routeForm').reset();
+        document.getElementById('editId').value = '';
+        document.getElementById('formTitle').innerHTML = '<i class="fas fa-plus"></i> Add New Route';
+        document.getElementById('submitText').textContent = 'Save Route';
+        document.getElementById('cancelBtn').style.display = 'none';
+        document.getElementById('isActive').checked = true;
+    }
+    
+    // Submit form
+    document.getElementById('routeForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const editId = document.getElementById('editId').value;
+        const formData = new FormData();
+        
+        formData.append('route_name', document.getElementById('routeName').value || '');
+        formData.append('origin_id', document.getElementById('originId').value);
+        formData.append('destination_id', document.getElementById('destinationId').value);
+        formData.append('transport_mode', document.getElementById('transportMode').value);
+        formData.append('distance_km', document.getElementById('distanceKm').value || '0');
+        formData.append('estimated_time_minutes', document.getElementById('estimatedTime').value || '0');
+        formData.append('base_fare', document.getElementById('baseFare').value || '0');
+        formData.append('fare_per_km', document.getElementById('farePerKm').value || '0');
+        formData.append('description', document.getElementById('description').value || '');
+        formData.append('is_active', document.getElementById('isActive').checked);
+        
+        try {
+            showLoading();
+            
+            // Note: Currently only POST is supported, PUT for routes needs to be added to backend
+            const response = await fetch('/api/admin/routes', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: formData
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to save route');
+            }
+            
+            showAlert('success', 'Route saved successfully!');
+            resetForm();
+            loadAllData();
+            
+        } catch (error) {
+            console.error('Error saving route:', error);
+            showAlert('error', error.message || 'Error saving route. Please try again.');
+        } finally {
+            hideLoading();
+        }
+    });
+    
+    // Delete route
+    async function deleteRoute(id, name) {
+        if (!confirmDelete(`Are you sure you want to delete "${name}"?`)) {
+            return;
+        }
+        
+        try {
+            showLoading();
+            
+            const response = await fetch(`/api/admin/routes/${id}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to delete route');
+            }
+            
+            showAlert('success', 'Route deleted successfully!');
+            loadAllData();
+            
+        } catch (error) {
+            console.error('Error deleting route:', error);
+            showAlert('error', error.message || 'Error deleting route. Please try again.');
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    // Load on page ready
+    document.addEventListener('DOMContentLoaded', loadAllData);
+</script>
+{% endblock %}
