@@ -515,13 +515,27 @@ function showOnMap(lat, lng, name) {
 
 // Select and display route
 function selectRoute(routeData) {
+    // Remove previous selection
     document.querySelectorAll('.route-card').forEach(card => {
         card.classList.remove('selected');
     });
     event.currentTarget.classList.add('selected');
     
     selectedRouteData = routeData;
+    
+    // Show route on map
     showRouteOnMap();
+    
+    // 🔥 NEW: Scroll to map smoothly
+    setTimeout(() => {
+        const mapElement = document.getElementById('map');
+        if (mapElement) {
+            mapElement.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+        }
+    }, 100);
 }
 
 // Show route on map

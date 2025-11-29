@@ -194,6 +194,8 @@ async def update_route(
     db.commit()
     
     return {"message": "Route updated successfully"}
+
+    
     
     # Handle additional photos
     if additional_photos and additional_photos[0].filename:

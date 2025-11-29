@@ -139,11 +139,16 @@
         try {
             showLoading();
             
-            // Load routes
-            const routesResponse = await fetch('/api/routes/');
-            routes = await routesResponse.json();
+            // Load ALL routes (active AND inactive)
+            const activeResponse = await fetch('/api/routes/?is_active=true');
+            const activeRoutes = await activeResponse.json();
             
-            // Load destinations for dropdowns
+            const inactiveResponse = await fetch('/api/routes/?is_active=false');
+            const inactiveRoutes = await inactiveResponse.json();
+            
+            routes = [...activeRoutes, ...inactiveRoutes];
+            
+            // Load destinations
             const destResponse = await fetch('/api/destinations/?page_size=100');
             const destData = await destResponse.json();
             destinations = destData.destinations;
@@ -198,7 +203,7 @@
             const totalFare = route.total_fare ? `₱${parseFloat(route.total_fare).toFixed(2)}` : 'N/A';
             
             return `
-                <tr>
+                <tr ${!route.is_active ? 'style="opacity: 0.6; background: #f8f9fa;"' : ''}>
                     <td>
                         <strong>${routeName}</strong><br>
                         <small class="text-muted">
@@ -218,12 +223,15 @@
                         }
                     </td>
                     <td class="table-actions">
-                        <button class="btn btn-sm btn-primary" onclick='editRoute(${JSON.stringify(route)})'>
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteRoute(${route.id}, '${routeName.replace(/'/g, "\\'")}')">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-sm btn-primary" onclick='editRoute(${JSON.stringify(route)})' title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        
+                            <button class="btn btn-sm btn-danger" onclick="deleteRoute(${route.id}, '${routeName.replace(/'/g, "\\'")}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -261,54 +269,83 @@
         document.getElementById('isActive').checked = true;
     }
     
-    // Submit form
-document.getElementById('routeForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const editId = document.getElementById('editId').value;
-    
-    // ✅ Use FormData
-    const formData = new FormData();
-    
-    formData.append('route_name', document.getElementById('routeName').value || '');
-    formData.append('origin_id', document.getElementById('originId').value);
-    formData.append('destination_id', document.getElementById('destinationId').value);
-    formData.append('transport_mode', document.getElementById('transportMode').value);
-    formData.append('distance_km', document.getElementById('distanceKm').value || '0');
-    formData.append('estimated_time_minutes', document.getElementById('estimatedTime').value || '0');
-    formData.append('base_fare', document.getElementById('baseFare').value || '0');
-    formData.append('fare_per_km', document.getElementById('farePerKm').value || '0');
-    formData.append('description', document.getElementById('description').value || '');
-    formData.append('is_active', document.getElementById('isActive').checked ? 'true' : 'false');
-    
-    try {
-        showLoading();
+    // Submit form - FIXED
+    document.getElementById('routeForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
         
-        const response = await fetch('/api/admin/routes', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-                // ❌ DON'T add Content-Type
-            },
-            body: formData  // ✅ FormData
-        });
+        const editId = document.getElementById('editId').value;
         
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Failed to save route');
+        const formData = new FormData();
+        formData.append('route_name', document.getElementById('routeName').value || '');
+        formData.append('origin_id', document.getElementById('originId').value);
+        formData.append('destination_id', document.getElementById('destinationId').value);
+        formData.append('transport_mode', document.getElementById('transportMode').value);
+        formData.append('distance_km', document.getElementById('distanceKm').value || '0');
+        formData.append('estimated_time_minutes', document.getElementById('estimatedTime').value || '0');
+        formData.append('base_fare', document.getElementById('baseFare').value || '0');
+        formData.append('fare_per_km', document.getElementById('farePerKm').value || '0');
+        formData.append('description', document.getElementById('description').value || '');
+        formData.append('is_active', document.getElementById('isActive').checked ? 'true' : 'false');
+        
+        try {
+            showLoading();
+            
+            const url = editId ? `/api/admin/routes/${editId}` : '/api/admin/routes';
+            const method = editId ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                },
+                body: formData
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to save route');
+            }
+            
+            showAlert('success', `Route ${editId ? 'updated' : 'created'} successfully!`);
+            resetForm();
+            loadAllData();
+            
+        } catch (error) {
+            console.error('Error saving route:', error);
+            showAlert('error', error.message || 'Error saving route. Please try again.');
+        } finally {
+            hideLoading();
+        }
+    });
+    
+    // Toggle status - NEW
+    async function toggleStatus(id, currentStatus) {
+        if (!confirm(`Toggle status to ${currentStatus ? 'Inactive' : 'Active'}?`)) {
+            return;
         }
         
-        showAlert('success', 'Route saved successfully!');
-        resetForm();
-        loadAllData();
-        
-    } catch (error) {
-        console.error('Error saving route:', error);
-        showAlert('error', error.message || 'Error saving route. Please try again.');
-    } finally {
-        hideLoading();
+        try {
+            showLoading();
+            
+            const response = await fetch(`/api/admin/routes/${id}/toggle`, {
+                method: 'PATCH',
+                headers: getAuthHeaders()
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to toggle status');
+            }
+            
+            showAlert('success', 'Status updated successfully!');
+            loadAllData();
+            
+        } catch (error) {
+            console.error('Error toggling status:', error);
+            showAlert('error', 'Error updating status. Please try again.');
+        } finally {
+            hideLoading();
+        }
     }
-});
     
     // Delete route
     async function deleteRoute(id, name) {
