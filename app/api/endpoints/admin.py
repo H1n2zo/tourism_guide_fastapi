@@ -155,57 +155,45 @@ async def create_destination(
     return {"message": "Destination created successfully", "id": new_dest.id}
 
 
-@router.put("/destinations/{destination_id}")
-async def update_destination(
-    destination_id: int,
-    name: str = Form(...),
-    category_id: int = Form(...),
+# app/api/endpoints/admin.py - ADD THIS ENDPOINT for Routes Update
+
+@router.put("/routes/{route_id}")
+async def update_route(
+    route_id: int,
+    route_name: Optional[str] = Form(None),
+    origin_id: int = Form(...),
+    destination_id: int = Form(...),
+    transport_mode: str = Form(...),
+    distance_km: Optional[float] = Form(None),
+    estimated_time_minutes: Optional[int] = Form(None),
+    base_fare: Optional[float] = Form(None),
+    fare_per_km: Optional[float] = Form(None),
     description: Optional[str] = Form(None),
-    address: Optional[str] = Form(None),
-    latitude: Optional[float] = Form(None),
-    longitude: Optional[float] = Form(None),
-    contact_number: Optional[str] = Form(None),
-    email: Optional[str] = Form(None),
-    website: Optional[str] = Form(None),
-    opening_hours: Optional[str] = Form(None),
-    entry_fee: Optional[str] = Form(None),
     is_active: bool = Form(True),
-    image: Optional[UploadFile] = File(None),
-    additional_photos: List[UploadFile] = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    """Update destination with multiple photos"""
+    """Update existing route"""
     
-    dest = db.query(Destination).filter(Destination.id == destination_id).first()
-    if not dest:
-        raise HTTPException(status_code=404, detail="Destination not found")
-    
-    # Handle featured image upload
-    if image and image.filename:
-        # Delete old image
-        if dest.image_path:
-            old_path = UPLOAD_DIR / dest.image_path
-            if old_path.exists():
-                old_path.unlink()
-        
-        dest.image_path = save_uploaded_file(image, "destinations")
+    route = db.query(Route).filter(Route.id == route_id).first()
+    if not route:
+        raise HTTPException(status_code=404, detail="Route not found")
     
     # Update fields
-    dest.name = name
-    dest.category_id = category_id
-    dest.description = description
-    dest.address = address
-    dest.latitude = latitude
-    dest.longitude = longitude
-    dest.contact_number = contact_number
-    dest.email = email
-    dest.website = website
-    dest.opening_hours = opening_hours
-    dest.entry_fee = entry_fee
-    dest.is_active = is_active
+    route.route_name = route_name
+    route.origin_id = origin_id
+    route.destination_id = destination_id
+    route.transport_mode = transport_mode
+    route.distance_km = distance_km
+    route.estimated_time_minutes = estimated_time_minutes
+    route.base_fare = base_fare
+    route.fare_per_km = fare_per_km
+    route.description = description
+    route.is_active = is_active
     
     db.commit()
+    
+    return {"message": "Route updated successfully"}
     
     # Handle additional photos
     if additional_photos and additional_photos[0].filename:

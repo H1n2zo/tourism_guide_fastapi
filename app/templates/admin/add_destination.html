@@ -15,19 +15,6 @@
         border-radius: 5px;
         margin-top: 10px;
     }
-    
-    .additional-photo-preview {
-        display: inline-block;
-        margin: 10px;
-    }
-    
-    .additional-photo-preview img {
-        width: 100px;
-        height: 100px;
-        object-fit: cover;
-        border-radius: 5px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    }
 </style>
 {% endblock %}
 
@@ -58,31 +45,31 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <label class="form-label">Destination Name *</label>
-                            <input type="text" class="form-control" name="name" required>
+                            <input type="text" class="form-control" name="name" id="name" required>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Category *</label>
-                            <select class="form-select" name="category_id" required id="categorySelect">
+                            <select class="form-select" name="category_id" id="categorySelect" required>
                                 <option value="">Select Category</option>
                             </select>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Description</label>
-                            <textarea class="form-control" name="description" rows="5"></textarea>
+                            <textarea class="form-control" name="description" id="description" rows="5"></textarea>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Address</label>
-                            <textarea class="form-control" name="address" rows="2"></textarea>
+                            <textarea class="form-control" name="address" id="address" rows="2"></textarea>
                         </div>
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Status</label>
                                 <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" name="is_active" checked>
+                                    <input class="form-check-input" type="checkbox" name="is_active" id="is_active" checked>
                                     <label class="form-check-label">Active</label>
                                 </div>
                             </div>
@@ -100,12 +87,12 @@
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Latitude</label>
                                 <input type="number" class="form-control" name="latitude" 
-                                       id="latitude" step="any">
+                                       id="latitude" step="any" placeholder="e.g., 11.0059">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Longitude</label>
                                 <input type="number" class="form-control" name="longitude" 
-                                       id="longitude" step="any">
+                                       id="longitude" step="any" placeholder="e.g., 124.6075">
                             </div>
                         </div>
                         <button type="button" class="btn btn-info btn-sm me-2" onclick="getCurrentLocation()">
@@ -117,26 +104,6 @@
                         <div id="map" style="display: none;"></div>
                     </div>
                 </div>
-                
-                <!-- ADD MULTIPLE PHOTOS (LIKE PHP VERSION) -->
-                <div class="card mb-4">
-                    <div class="card-header bg-info text-white">
-                        <h5 class="mb-0"><i class="fas fa-camera"></i> Gallery Photos</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label class="form-label">Upload Multiple Photos (Max 5MB each)</label>
-                            <input type="file" class="form-control" name="additional_photos" 
-                                   id="additionalPhotos" accept="image/*" multiple 
-                                   onchange="previewAdditionalPhotos(this)">
-                            <small class="text-muted">
-                                <i class="fas fa-info-circle"></i> You can select multiple images at once. 
-                                These will be added to the gallery.
-                            </small>
-                        </div>
-                        <div id="additionalPhotoPreviews"></div>
-                    </div>
-                </div>
             </div>
 
             <div class="col-lg-4">
@@ -146,12 +113,9 @@
                         <h5 class="mb-0"><i class="fas fa-image"></i> Featured Image</h5>
                     </div>
                     <div class="card-body">
-                        <input type="file" class="form-control" name="image" 
+                        <input type="file" class="form-control" name="image" id="image"
                                accept="image/*" onchange="previewImage(this)">
-                        <small class="text-muted">
-                            Max 5MB. JPG, PNG, GIF, WEBP
-                            <br>This is the main image shown in cards
-                        </small>
+                        <small class="text-muted">Max 5MB. JPG, PNG, GIF, WEBP</small>
                         <img id="imagePreview" class="image-preview img-fluid" style="display:none;">
                     </div>
                 </div>
@@ -164,15 +128,15 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <label class="form-label">Contact Number</label>
-                            <input type="text" class="form-control" name="contact_number">
+                            <input type="text" class="form-control" name="contact_number" id="contact_number">
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Email</label>
-                            <input type="email" class="form-control" name="email">
+                            <input type="email" class="form-control" name="email" id="email">
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Website</label>
-                            <input type="url" class="form-control" name="website">
+                            <input type="url" class="form-control" name="website" id="website">
                         </div>
                     </div>
                 </div>
@@ -185,12 +149,12 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <label class="form-label">Opening Hours</label>
-                            <input type="text" class="form-control" name="opening_hours" 
+                            <input type="text" class="form-control" name="opening_hours" id="opening_hours"
                                    placeholder="e.g., 8:00 AM - 5:00 PM">
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Entry Fee</label>
-                            <input type="text" class="form-control" name="entry_fee" 
+                            <input type="text" class="form-control" name="entry_fee" id="entry_fee"
                                    placeholder="e.g., PHP 50 or Free">
                         </div>
                     </div>
@@ -232,7 +196,7 @@
         }
     }
     
-    // Preview featured image
+    // Preview image
     function previewImage(input) {
         const preview = document.getElementById('imagePreview');
         if (input.files && input.files[0]) {
@@ -242,30 +206,6 @@
                 preview.style.display = 'block';
             };
             reader.readAsDataURL(input.files[0]);
-        }
-    }
-    
-    // Preview additional photos (MULTIPLE PHOTOS)
-    function previewAdditionalPhotos(input) {
-        const container = document.getElementById('additionalPhotoPreviews');
-        container.innerHTML = '';
-        
-        if (input.files) {
-            Array.from(input.files).forEach((file, index) => {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const div = document.createElement('div');
-                    div.className = 'additional-photo-preview';
-                    div.innerHTML = `
-                        <img src="${e.target.result}" alt="Preview ${index + 1}">
-                        <div class="mt-1 text-center">
-                            <small class="badge bg-primary">Photo ${index + 1}</small>
-                        </div>
-                    `;
-                    container.appendChild(div);
-                };
-                reader.readAsDataURL(file);
-            });
         }
     }
     
@@ -316,25 +256,38 @@
         }
     }
     
-    // Submit form
+    // Submit form - FIXED
     document.getElementById('destinationForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        const formData = new FormData(this);
+        const formData = new FormData();
         
-        // Convert is_active checkbox to boolean
-        formData.set('is_active', document.querySelector('input[name="is_active"]').checked);
+        // Add all text fields
+        formData.append('name', document.getElementById('name').value);
+        formData.append('category_id', document.getElementById('categorySelect').value);
+        formData.append('description', document.getElementById('description').value || '');
+        formData.append('address', document.getElementById('address').value || '');
         
-        // Add multiple photos
-        const additionalPhotos = document.getElementById('additionalPhotos');
-        if (additionalPhotos.files.length > 0) {
-            // Remove the single file entry
-            formData.delete('additional_photos');
-            
-            // Add all files
-            for (let i = 0; i < additionalPhotos.files.length; i++) {
-                formData.append('additional_photos', additionalPhotos.files[i]);
-            }
+        // Add coordinates (or empty strings if not provided)
+        const lat = document.getElementById('latitude').value;
+        const lng = document.getElementById('longitude').value;
+        if (lat) formData.append('latitude', lat);
+        if (lng) formData.append('longitude', lng);
+        
+        // Add contact info
+        formData.append('contact_number', document.getElementById('contact_number').value || '');
+        formData.append('email', document.getElementById('email').value || '');
+        formData.append('website', document.getElementById('website').value || '');
+        formData.append('opening_hours', document.getElementById('opening_hours').value || '');
+        formData.append('entry_fee', document.getElementById('entry_fee').value || '');
+        
+        // Add status
+        formData.append('is_active', document.getElementById('is_active').checked);
+        
+        // Add image if selected
+        const imageInput = document.getElementById('image');
+        if (imageInput.files.length > 0) {
+            formData.append('image', imageInput.files[0]);
         }
         
         try {
@@ -344,12 +297,14 @@
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    // DO NOT set Content-Type for FormData - browser sets it automatically
                 },
                 body: formData
             });
             
             if (!response.ok) {
                 const error = await response.json();
+                console.error('Server error:', error);
                 throw new Error(error.detail || 'Failed to create destination');
             }
             
