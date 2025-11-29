@@ -1,4 +1,4 @@
-# app/api/endpoints/admin.py - Admin Panel API Routes
+# app/api/endpoints/admin.py - Admin Panel API Routes (FIXED)
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from app.database import get_db
 from app.api.deps import require_admin
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.destination import Destination, DestinationImage
 from app.models.category import Category
 from app.models.route import Route, TransportMode
@@ -102,8 +102,10 @@ async def create_destination(
     
     # Handle image upload
     image_path = None
-    if image:
-        ext = image.filename.split('.')[-1]
+    if image and image.filename:
+        # Extract extension safely
+        filename_parts = image.filename.split('.')
+        ext = filename_parts[-1] if len(filename_parts) > 1 else 'jpg'
         filename = f"{uuid.uuid4()}_{int(datetime.now().timestamp())}.{ext}"
         file_path = UPLOAD_DIR / "destinations" / filename
         
@@ -112,14 +114,14 @@ async def create_destination(
         
         image_path = f"destinations/{filename}"
     
-    # Create destination
+    # Create destination - proper attribute assignment
     new_dest = Destination(
         name=name,
         category_id=category_id,
         description=description,
         address=address,
-        latitude=latitude,
-        longitude=longitude,
+        latitude=Decimal(str(latitude)) if latitude is not None else None,
+        longitude=Decimal(str(longitude)) if longitude is not None else None,
         contact_number=contact_number,
         email=email,
         website=website,
@@ -157,20 +159,22 @@ async def update_destination(
 ):
     """Update destination"""
     
-     dest = db.query(Destination).filter(Destination.id == destination_id).first()
+    dest = db.query(Destination).filter(Destination.id == destination_id).first()
     if not dest:
         raise HTTPException(status_code=404, detail="Destination not found")
     
-    # ✅ FIX: Only handle image if a NEW one is uploaded
-    if image and image.filename:  # Check if file actually exists
-        # Delete old image ONLY if new one is uploaded
-        if dest.image_path:
-            old_path = UPLOAD_DIR / dest.image_path
+    # Handle image upload
+    if image and image.filename:
+        # Delete old image
+        old_image_path = str(dest.image_path) if dest.image_path else None
+        if old_image_path:
+            old_path = UPLOAD_DIR / old_image_path
             if old_path.exists():
                 old_path.unlink()
         
         # Upload new image
-        ext = image.filename.split('.')[-1]
+        filename_parts = image.filename.split('.')
+        ext = filename_parts[-1] if len(filename_parts) > 1 else 'jpg'
         filename = f"{uuid.uuid4()}_{int(datetime.now().timestamp())}.{ext}"
         file_path = UPLOAD_DIR / "destinations" / filename
         
@@ -179,13 +183,13 @@ async def update_destination(
         
         dest.image_path = f"destinations/{filename}"
     
-    # Update fields
+    # Update fields properly using setattr or direct assignment
     dest.name = name
     dest.category_id = category_id
     dest.description = description
     dest.address = address
-    dest.latitude = latitude
-    dest.longitude = longitude
+    dest.latitude = Decimal(str(latitude)) if latitude is not None else None
+    dest.longitude = Decimal(str(longitude)) if longitude is not None else None
     dest.contact_number = contact_number
     dest.email = email
     dest.website = website
@@ -211,8 +215,9 @@ async def delete_destination(
         raise HTTPException(status_code=404, detail="Destination not found")
     
     # Delete image
-    if dest.image_path:
-        image_path = UPLOAD_DIR / dest.image_path
+    image_path_str = str(dest.image_path) if dest.image_path else None
+    if image_path_str:
+        image_path = UPLOAD_DIR / image_path_str
         if image_path.exists():
             image_path.unlink()
     
@@ -234,7 +239,9 @@ async def toggle_destination_status(
     if not dest:
         raise HTTPException(status_code=404, detail="Destination not found")
     
-    dest.is_active = not dest.is_active
+    # FIX: Properly toggle boolean
+    current_status = bool(dest.is_active)
+    dest.is_active = not current_status
     db.commit()
     
     return {"message": "Status updated", "is_active": dest.is_active}
@@ -296,7 +303,7 @@ async def delete_category(
         Destination.category_id == category_id
     ).scalar()
     
-    if dest_count > 0:
+    if dest_count and dest_count > 0:
         raise HTTPException(
             status_code=400, 
             detail=f"Cannot delete category with {dest_count} destinations"
@@ -331,10 +338,10 @@ async def create_route(
         origin_id=origin_id,
         destination_id=destination_id,
         transport_mode=TransportMode(transport_mode),
-        distance_km=distance_km,
+        distance_km=Decimal(str(distance_km)) if distance_km is not None else None,
         estimated_time_minutes=estimated_time_minutes,
-        base_fare=base_fare,
-        fare_per_km=fare_per_km,
+        base_fare=Decimal(str(base_fare)) if base_fare is not None else None,
+        fare_per_km=Decimal(str(fare_per_km)) if fare_per_km is not None else None,
         description=description,
         is_active=is_active
     )
@@ -395,7 +402,9 @@ async def toggle_review_approval(
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
     
-    review.is_approved = not review.is_approved
+    # FIX: Properly toggle boolean
+    current_status = bool(review.is_approved)
+    review.is_approved = not current_status
     db.commit()
     
     return {"message": "Review status updated", "is_approved": review.is_approved}
@@ -496,8 +505,10 @@ async def toggle_user_role(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    from app.models.user import UserRole
-    user.role = UserRole.USER if user.role == UserRole.ADMIN else UserRole.ADMIN
+    # FIX: Properly toggle role
+    current_role = user.role
+    new_role = UserRole.USER if current_role == UserRole.ADMIN else UserRole.ADMIN
+    user.role = new_role
     db.commit()
     
     return {"message": "User role updated", "role": user.role.value}
