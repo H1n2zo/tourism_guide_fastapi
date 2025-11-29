@@ -12,27 +12,21 @@ from app.schemas.destination import DestinationResponse, DestinationListResponse
 router = APIRouter()
 
 
-# app/api/endpoints/destinations.py - FIXED to allow fetching inactive items
-
 @router.get("/", response_model=DestinationListResponse)
 def get_destinations(
     page: int = Query(1, ge=1),
     page_size: int = Query(12, ge=1, le=100),
     search: Optional[str] = None,
     category_id: Optional[int] = None,
-    is_active: Optional[bool] = None,  # ✅ Make it optional (None = all)
+    is_active: bool = True,
     db: Session = Depends(get_db)
 ):
     """Get list of destinations with pagination and filters"""
     
-    # Base query - NO default filter on is_active
-    query = db.query(Destination)
+    # Base query
+    query = db.query(Destination).filter(Destination.is_active == is_active)
     
-    # ✅ Only filter by is_active if explicitly provided
-    if is_active is not None:
-        query = query.filter(Destination.is_active == is_active)
-    
-    # Apply other filters
+    # Apply filters
     if search:
         query = query.filter(
             or_(
