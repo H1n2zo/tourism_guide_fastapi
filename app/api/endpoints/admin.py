@@ -1,4 +1,4 @@
-# app/api/endpoints/admin.py - Admin Panel API Routes (FIXED)
+# app/api/endpoints/admin.py - FIXED: Add Multiple Photos Support
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
@@ -7,15 +7,12 @@ from decimal import Decimal
 
 from app.database import get_db
 from app.api.deps import require_admin
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.models.destination import Destination, DestinationImage
 from app.models.category import Category
 from app.models.route import Route, TransportMode
 from app.models.review import Review
 from app.models.feedback import WebsiteFeedback
-from app.schemas.destination import DestinationResponse
-from app.schemas.category import CategoryResponse
-from app.schemas.route import RouteResponse
 import os
 import shutil
 from pathlib import Path
@@ -29,6 +26,19 @@ UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 (UPLOAD_DIR / "destinations").mkdir(exist_ok=True)
 (UPLOAD_DIR / "categories").mkdir(exist_ok=True)
+
+
+# ============ HELPER FUNCTIONS ============
+def save_uploaded_file(file: UploadFile, folder: str) -> str:
+    """Save uploaded file and return path"""
+    ext = file.filename.split('.')[-1]
+    filename = f"{uuid.uuid4()}_{int(datetime.now().timestamp())}.{ext}"
+    file_path = UPLOAD_DIR / folder / filename
+    
+    with open(file_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    
+    return f"{folder}/{filename}"
 
 
 # ============ DASHBOARD ============
@@ -95,33 +105,25 @@ async def create_destination(
     entry_fee: Optional[str] = Form(None),
     is_active: bool = Form(True),
     image: Optional[UploadFile] = File(None),
+    additional_photos: List[UploadFile] = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    """Create new destination"""
+    """Create new destination with multiple photos"""
     
-    # Handle image upload
+    # Handle featured image upload
     image_path = None
-    if image and image.filename:
-        # Extract extension safely
-        filename_parts = image.filename.split('.')
-        ext = filename_parts[-1] if len(filename_parts) > 1 else 'jpg'
-        filename = f"{uuid.uuid4()}_{int(datetime.now().timestamp())}.{ext}"
-        file_path = UPLOAD_DIR / "destinations" / filename
-        
-        with open(file_path, "wb") as f:
-            shutil.copyfileobj(image.file, f)
-        
-        image_path = f"destinations/{filename}"
+    if image:
+        image_path = save_uploaded_file(image, "destinations")
     
-    # Create destination - proper attribute assignment
+    # Create destination
     new_dest = Destination(
         name=name,
         category_id=category_id,
         description=description,
         address=address,
-        latitude=Decimal(str(latitude)) if latitude is not None else None,
-        longitude=Decimal(str(longitude)) if longitude is not None else None,
+        latitude=latitude,
+        longitude=longitude,
         contact_number=contact_number,
         email=email,
         website=website,
@@ -134,6 +136,21 @@ async def create_destination(
     db.add(new_dest)
     db.commit()
     db.refresh(new_dest)
+    
+    # Handle additional photos
+    if additional_photos and additional_photos[0].filename:
+        for photo_file in additional_photos:
+            if photo_file.filename:
+                photo_path = save_uploaded_file(photo_file, "destinations")
+                
+                new_image = DestinationImage(
+                    destination_id=new_dest.id,
+                    image_path=photo_path,
+                    caption=""
+                )
+                db.add(new_image)
+        
+        db.commit()
     
     return {"message": "Destination created successfully", "id": new_dest.id}
 
@@ -154,42 +171,33 @@ async def update_destination(
     entry_fee: Optional[str] = Form(None),
     is_active: bool = Form(True),
     image: Optional[UploadFile] = File(None),
+    additional_photos: List[UploadFile] = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    """Update destination"""
+    """Update destination with multiple photos"""
     
     dest = db.query(Destination).filter(Destination.id == destination_id).first()
     if not dest:
         raise HTTPException(status_code=404, detail="Destination not found")
     
-    # Handle image upload
+    # Handle featured image upload
     if image and image.filename:
         # Delete old image
-        old_image_path = str(dest.image_path) if dest.image_path else None
-        if old_image_path:
-            old_path = UPLOAD_DIR / old_image_path
+        if dest.image_path:
+            old_path = UPLOAD_DIR / dest.image_path
             if old_path.exists():
                 old_path.unlink()
         
-        # Upload new image
-        filename_parts = image.filename.split('.')
-        ext = filename_parts[-1] if len(filename_parts) > 1 else 'jpg'
-        filename = f"{uuid.uuid4()}_{int(datetime.now().timestamp())}.{ext}"
-        file_path = UPLOAD_DIR / "destinations" / filename
-        
-        with open(file_path, "wb") as f:
-            shutil.copyfileobj(image.file, f)
-        
-        dest.image_path = f"destinations/{filename}"
+        dest.image_path = save_uploaded_file(image, "destinations")
     
-    # Update fields properly using setattr or direct assignment
+    # Update fields
     dest.name = name
     dest.category_id = category_id
     dest.description = description
     dest.address = address
-    dest.latitude = Decimal(str(latitude)) if latitude is not None else None
-    dest.longitude = Decimal(str(longitude)) if longitude is not None else None
+    dest.latitude = latitude
+    dest.longitude = longitude
     dest.contact_number = contact_number
     dest.email = email
     dest.website = website
@@ -199,7 +207,45 @@ async def update_destination(
     
     db.commit()
     
+    # Handle additional photos
+    if additional_photos and additional_photos[0].filename:
+        for photo_file in additional_photos:
+            if photo_file.filename:
+                photo_path = save_uploaded_file(photo_file, "destinations")
+                
+                new_image = DestinationImage(
+                    destination_id=destination_id,
+                    image_path=photo_path,
+                    caption=""
+                )
+                db.add(new_image)
+        
+        db.commit()
+    
     return {"message": "Destination updated successfully"}
+
+
+@router.delete("/destination-images/{image_id}")
+async def delete_destination_image(
+    image_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """Delete a destination gallery image"""
+    
+    image = db.query(DestinationImage).filter(DestinationImage.id == image_id).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    # Delete file
+    image_path = UPLOAD_DIR / image.image_path
+    if image_path.exists():
+        image_path.unlink()
+    
+    db.delete(image)
+    db.commit()
+    
+    return {"message": "Image deleted successfully"}
 
 
 @router.delete("/destinations/{destination_id}")
@@ -214,12 +260,21 @@ async def delete_destination(
     if not dest:
         raise HTTPException(status_code=404, detail="Destination not found")
     
-    # Delete image
-    image_path_str = str(dest.image_path) if dest.image_path else None
-    if image_path_str:
-        image_path = UPLOAD_DIR / image_path_str
+    # Delete featured image
+    if dest.image_path:
+        image_path = UPLOAD_DIR / dest.image_path
         if image_path.exists():
             image_path.unlink()
+    
+    # Delete gallery images (cascade will handle DB, but we need to delete files)
+    gallery_images = db.query(DestinationImage).filter(
+        DestinationImage.destination_id == destination_id
+    ).all()
+    
+    for img in gallery_images:
+        img_path = UPLOAD_DIR / img.image_path
+        if img_path.exists():
+            img_path.unlink()
     
     db.delete(dest)
     db.commit()
@@ -239,9 +294,7 @@ async def toggle_destination_status(
     if not dest:
         raise HTTPException(status_code=404, detail="Destination not found")
     
-    # FIX: Properly toggle boolean
-    current_status = bool(dest.is_active)
-    dest.is_active = not current_status
+    dest.is_active = not dest.is_active
     db.commit()
     
     return {"message": "Status updated", "is_active": dest.is_active}
@@ -303,7 +356,7 @@ async def delete_category(
         Destination.category_id == category_id
     ).scalar()
     
-    if dest_count and dest_count > 0:
+    if dest_count > 0:
         raise HTTPException(
             status_code=400, 
             detail=f"Cannot delete category with {dest_count} destinations"
@@ -337,11 +390,11 @@ async def create_route(
         route_name=route_name,
         origin_id=origin_id,
         destination_id=destination_id,
-        transport_mode=TransportMode(transport_mode),
-        distance_km=Decimal(str(distance_km)) if distance_km is not None else None,
+        transport_mode=transport_mode,
+        distance_km=distance_km,
         estimated_time_minutes=estimated_time_minutes,
-        base_fare=Decimal(str(base_fare)) if base_fare is not None else None,
-        fare_per_km=Decimal(str(fare_per_km)) if fare_per_km is not None else None,
+        base_fare=base_fare,
+        fare_per_km=fare_per_km,
         description=description,
         is_active=is_active
     )
@@ -402,9 +455,7 @@ async def toggle_review_approval(
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
     
-    # FIX: Properly toggle boolean
-    current_status = bool(review.is_approved)
-    review.is_approved = not current_status
+    review.is_approved = not review.is_approved
     db.commit()
     
     return {"message": "Review status updated", "is_approved": review.is_approved}
@@ -505,10 +556,8 @@ async def toggle_user_role(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # FIX: Properly toggle role
-    current_role = user.role
-    new_role = UserRole.USER if current_role == UserRole.ADMIN else UserRole.ADMIN
-    user.role = new_role
+    from app.models.user import UserRole
+    user.role = UserRole.USER if user.role == UserRole.ADMIN else UserRole.ADMIN
     db.commit()
     
     return {"message": "User role updated", "role": user.role.value}

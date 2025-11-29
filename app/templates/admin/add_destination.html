@@ -15,6 +15,19 @@
         border-radius: 5px;
         margin-top: 10px;
     }
+    
+    .additional-photo-preview {
+        display: inline-block;
+        margin: 10px;
+    }
+    
+    .additional-photo-preview img {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
 </style>
 {% endblock %}
 
@@ -104,6 +117,26 @@
                         <div id="map" style="display: none;"></div>
                     </div>
                 </div>
+                
+                <!-- ADD MULTIPLE PHOTOS (LIKE PHP VERSION) -->
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-camera"></i> Gallery Photos</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Upload Multiple Photos (Max 5MB each)</label>
+                            <input type="file" class="form-control" name="additional_photos" 
+                                   id="additionalPhotos" accept="image/*" multiple 
+                                   onchange="previewAdditionalPhotos(this)">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle"></i> You can select multiple images at once. 
+                                These will be added to the gallery.
+                            </small>
+                        </div>
+                        <div id="additionalPhotoPreviews"></div>
+                    </div>
+                </div>
             </div>
 
             <div class="col-lg-4">
@@ -115,7 +148,10 @@
                     <div class="card-body">
                         <input type="file" class="form-control" name="image" 
                                accept="image/*" onchange="previewImage(this)">
-                        <small class="text-muted">Max 5MB. JPG, PNG, GIF, WEBP</small>
+                        <small class="text-muted">
+                            Max 5MB. JPG, PNG, GIF, WEBP
+                            <br>This is the main image shown in cards
+                        </small>
                         <img id="imagePreview" class="image-preview img-fluid" style="display:none;">
                     </div>
                 </div>
@@ -196,7 +232,7 @@
         }
     }
     
-    // Preview image
+    // Preview featured image
     function previewImage(input) {
         const preview = document.getElementById('imagePreview');
         if (input.files && input.files[0]) {
@@ -206,6 +242,30 @@
                 preview.style.display = 'block';
             };
             reader.readAsDataURL(input.files[0]);
+        }
+    }
+    
+    // Preview additional photos (MULTIPLE PHOTOS)
+    function previewAdditionalPhotos(input) {
+        const container = document.getElementById('additionalPhotoPreviews');
+        container.innerHTML = '';
+        
+        if (input.files) {
+            Array.from(input.files).forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const div = document.createElement('div');
+                    div.className = 'additional-photo-preview';
+                    div.innerHTML = `
+                        <img src="${e.target.result}" alt="Preview ${index + 1}">
+                        <div class="mt-1 text-center">
+                            <small class="badge bg-primary">Photo ${index + 1}</small>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
         }
     }
     
@@ -256,51 +316,57 @@
         }
     }
     
-// FIXED Submit form handler for add_destination.html
-document.getElementById('destinationForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(this);
-    
-    // ✅ FIX: Properly handle checkbox value
-    const isActiveCheckbox = document.querySelector('input[name="is_active"]');
-    if (isActiveCheckbox.checked) {
-        formData.set('is_active', 'true');
-    } else {
-        formData.set('is_active', 'false');
-    }
-    
-    try {
-        showLoading();
+    // Submit form
+    document.getElementById('destinationForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
         
-        const response = await fetch('/api/admin/destinations', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-                // ✅ NO Content-Type - let browser set it with boundary
-            },
-            body: formData
-        });
+        const formData = new FormData(this);
         
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Failed to create destination');
+        // Convert is_active checkbox to boolean
+        formData.set('is_active', document.querySelector('input[name="is_active"]').checked);
+        
+        // Add multiple photos
+        const additionalPhotos = document.getElementById('additionalPhotos');
+        if (additionalPhotos.files.length > 0) {
+            // Remove the single file entry
+            formData.delete('additional_photos');
+            
+            // Add all files
+            for (let i = 0; i < additionalPhotos.files.length; i++) {
+                formData.append('additional_photos', additionalPhotos.files[i]);
+            }
         }
         
-        const result = await response.json();
-        showAlert('success', 'Destination created successfully!');
-        
-        setTimeout(() => {
-            window.location.href = '/admin/destinations';
-        }, 1500);
-        
-    } catch (error) {
-        console.error('Error creating destination:', error);
-        showAlert('error', error.message || 'Error creating destination. Please try again.');
-    } finally {
-        hideLoading();
-    }
-});
+        try {
+            showLoading();
+            
+            const response = await fetch('/api/admin/destinations', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                },
+                body: formData
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to create destination');
+            }
+            
+            const result = await response.json();
+            showAlert('success', 'Destination created successfully!');
+            
+            setTimeout(() => {
+                window.location.href = '/admin/destinations';
+            }, 1500);
+            
+        } catch (error) {
+            console.error('Error creating destination:', error);
+            showAlert('error', error.message || 'Error creating destination. Please try again.');
+        } finally {
+            hideLoading();
+        }
+    });
     
     // Load categories on page load
     document.addEventListener('DOMContentLoaded', loadCategories);

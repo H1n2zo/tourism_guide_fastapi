@@ -15,6 +15,53 @@
         border-radius: 5px;
         margin-top: 10px;
     }
+    
+    /* Gallery Photo Management */
+    .photo-item {
+        position: relative;
+        display: inline-block;
+        margin: 10px;
+    }
+    
+    .photo-item img {
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    
+    .photo-delete-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: rgba(220, 53, 69, 0.9);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+    
+    .photo-delete-btn:hover {
+        background: rgb(220, 53, 69);
+        transform: scale(1.1);
+    }
+    
+    .additional-photo-preview {
+        display: inline-block;
+        margin: 10px;
+    }
+    
+    .additional-photo-preview img {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 5px;
+    }
 </style>
 {% endblock %}
 
@@ -104,6 +151,33 @@
                             <i class="fas fa-map"></i> Pick on Map
                         </button>
                         <div id="map" style="display: none;"></div>
+                    </div>
+                </div>
+                
+                <!-- CURRENT GALLERY PHOTOS (Like PHP Version) -->
+                <div class="card mb-4" id="currentGalleryCard" style="display:none;">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="fas fa-images"></i> Current Gallery Photos</h5>
+                    </div>
+                    <div class="card-body" id="currentGalleryPhotos">
+                        <!-- Existing photos will load here -->
+                    </div>
+                </div>
+
+                <!-- ADD MORE PHOTOS (Like PHP Version) -->
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-camera"></i> Add More Photos</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Upload Multiple Photos (Max 5MB each)</label>
+                            <input type="file" class="form-control" name="additional_photos" 
+                                   id="additionalPhotos" accept="image/*" multiple 
+                                   onchange="previewAdditionalPhotos(this)">
+                            <small class="text-muted">You can select multiple images at once</small>
+                        </div>
+                        <div id="additionalPhotoPreviews"></div>
                     </div>
                 </div>
             </div>
@@ -207,11 +281,16 @@
             document.getElementById('entry_fee').value = dest.entry_fee || '';
             document.getElementById('is_active').checked = dest.is_active;
             
-            // Show current image
+            // Show current featured image
             if (dest.image_path) {
                 const preview = document.getElementById('imagePreview');
                 preview.src = `/uploads/${dest.image_path}`;
                 preview.style.display = 'block';
+            }
+            
+            // Load gallery photos
+            if (dest.images && dest.images.length > 0) {
+                displayGalleryPhotos(dest.images);
             }
             
         } catch (error) {
@@ -220,6 +299,69 @@
             setTimeout(() => {
                 window.location.href = '/admin/destinations';
             }, 2000);
+        } finally {
+            hideLoading();
+        }
+    }
+    
+    // Display existing gallery photos (LIKE PHP VERSION)
+    function displayGalleryPhotos(images) {
+        const container = document.getElementById('currentGalleryPhotos');
+        const card = document.getElementById('currentGalleryCard');
+        
+        container.innerHTML = images.map(img => `
+            <div class="photo-item" id="photo-${img.id}">
+                <img src="/uploads/${img.image_path}" alt="Gallery photo">
+                <button type="button" class="photo-delete-btn" 
+                        onclick="deleteGalleryPhoto(${img.id})" title="Delete Photo">
+                    <i class="fas fa-times"></i>
+                </button>
+                ${img.caption ? `
+                    <div class="text-center mt-1">
+                        <small>${img.caption}</small>
+                    </div>
+                ` : ''}
+            </div>
+        `).join('');
+        
+        card.style.display = 'block';
+    }
+    
+    // Delete gallery photo
+    async function deleteGalleryPhoto(photoId) {
+        if (!confirm('Delete this photo? This action cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            showLoading();
+            
+            const response = await fetch(`/api/admin/destination-images/${photoId}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to delete photo');
+            }
+            
+            // Remove photo from UI
+            const photoElement = document.getElementById(`photo-${photoId}`);
+            if (photoElement) {
+                photoElement.remove();
+            }
+            
+            showAlert('success', 'Photo deleted successfully!');
+            
+            // Check if no more photos, hide card
+            const remainingPhotos = document.querySelectorAll('.photo-item');
+            if (remainingPhotos.length === 0) {
+                document.getElementById('currentGalleryCard').style.display = 'none';
+            }
+            
+        } catch (error) {
+            console.error('Error deleting photo:', error);
+            showAlert('error', 'Error deleting photo. Please try again.');
         } finally {
             hideLoading();
         }
@@ -247,7 +389,7 @@
         }
     }
     
-    // Preview image
+    // Preview featured image
     function previewImage(input) {
         const preview = document.getElementById('imagePreview');
         if (input.files && input.files[0]) {
@@ -257,6 +399,30 @@
                 preview.style.display = 'block';
             };
             reader.readAsDataURL(input.files[0]);
+        }
+    }
+    
+    // Preview additional photos
+    function previewAdditionalPhotos(input) {
+        const container = document.getElementById('additionalPhotoPreviews');
+        container.innerHTML = '';
+        
+        if (input.files) {
+            Array.from(input.files).forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const div = document.createElement('div');
+                    div.className = 'additional-photo-preview';
+                    div.innerHTML = `
+                        <img src="${e.target.result}" alt="Preview ${index + 1}">
+                        <div class="mt-1 text-center">
+                            <small>Photo ${index + 1}</small>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
         }
     }
     
@@ -314,8 +480,35 @@
     document.getElementById('destinationForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        const formData = new FormData(this);
-        formData.set('is_active', document.getElementById('is_active').checked);
+        const formData = new FormData();
+        
+        // Add text fields
+        formData.append('name', document.getElementById('name').value);
+        formData.append('category_id', document.getElementById('categorySelect').value);
+        formData.append('description', document.getElementById('description').value);
+        formData.append('address', document.getElementById('address').value);
+        formData.append('latitude', document.getElementById('latitude').value || '');
+        formData.append('longitude', document.getElementById('longitude').value || '');
+        formData.append('contact_number', document.getElementById('contact_number').value);
+        formData.append('email', document.getElementById('email').value);
+        formData.append('website', document.getElementById('website').value);
+        formData.append('opening_hours', document.getElementById('opening_hours').value);
+        formData.append('entry_fee', document.getElementById('entry_fee').value);
+        formData.append('is_active', document.getElementById('is_active').checked);
+        
+        // Add featured image if changed
+        const imageInput = document.querySelector('input[name="image"]');
+        if (imageInput.files.length > 0) {
+            formData.append('image', imageInput.files[0]);
+        }
+        
+        // Add additional photos
+        const additionalPhotos = document.getElementById('additionalPhotos');
+        if (additionalPhotos.files.length > 0) {
+            for (let i = 0; i < additionalPhotos.files.length; i++) {
+                formData.append('additional_photos', additionalPhotos.files[i]);
+            }
+        }
         
         try {
             showLoading();
@@ -335,8 +528,9 @@
             
             showAlert('success', 'Destination updated successfully!');
             
+            // Reload to show new photos
             setTimeout(() => {
-                window.location.href = '/admin/destinations';
+                window.location.reload();
             }, 1500);
             
         } catch (error) {
