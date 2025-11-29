@@ -256,45 +256,51 @@
         }
     }
     
-    // Submit form
-    document.getElementById('destinationForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
+// FIXED Submit form handler for add_destination.html
+document.getElementById('destinationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    // ✅ FIX: Properly handle checkbox value
+    const isActiveCheckbox = document.querySelector('input[name="is_active"]');
+    if (isActiveCheckbox.checked) {
+        formData.set('is_active', 'true');
+    } else {
+        formData.set('is_active', 'false');
+    }
+    
+    try {
+        showLoading();
         
-        const formData = new FormData(this);
-        
-        // Convert is_active checkbox to boolean
-        formData.set('is_active', document.querySelector('input[name="is_active"]').checked);
-        
-        try {
-            showLoading();
-            
         const response = await fetch('/api/admin/destinations', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                // ✅ NO Content-Type - let browser set it with boundary
             },
             body: formData
         });
-            
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'Failed to create destination');
-            }
-            
-            const result = await response.json();
-            showAlert('success', 'Destination created successfully!');
-            
-            setTimeout(() => {
-                window.location.href = '/admin/destinations';
-            }, 1500);
-            
-        } catch (error) {
-            console.error('Error creating destination:', error);
-            showAlert('error', error.message || 'Error creating destination. Please try again.');
-        } finally {
-            hideLoading();
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to create destination');
         }
-    });
+        
+        const result = await response.json();
+        showAlert('success', 'Destination created successfully!');
+        
+        setTimeout(() => {
+            window.location.href = '/admin/destinations';
+        }, 1500);
+        
+    } catch (error) {
+        console.error('Error creating destination:', error);
+        showAlert('error', error.message || 'Error creating destination. Please try again.');
+    } finally {
+        hideLoading();
+    }
+});
     
     // Load categories on page load
     document.addEventListener('DOMContentLoaded', loadCategories);

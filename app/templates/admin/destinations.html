@@ -15,30 +15,35 @@
     <!-- Alert Container -->
     <div id="alertContainer"></div>
 
-    <!-- Search and Filter -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-5">
-                    <input type="text" class="form-control" id="searchInput" 
-                           placeholder="Search destinations..." 
-                           onkeyup="filterDestinations()">
-                </div>
-                <div class="col-md-4">
-                    <select class="form-select" id="categoryFilter" onchange="filterDestinations()">
-                        <option value="">All Categories</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <select class="form-select" id="statusFilter" onchange="filterDestinations()">
-                        <option value="">All Status</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                    </select>
-                </div>
+<!-- Search and Filter -->
+ <div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control" id="searchInput" 
+                       placeholder="Search destinations..." 
+                       onkeyup="filterDestinations()">
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="categoryFilter" onchange="filterDestinations()">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="statusFilter" onchange="filterDestinations()">
+                    <option value="all">All Status</option>
+                    <option value="active" selected>Active Only</option>
+                    <option value="inactive">Inactive Only</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-primary w-100" onclick="filterDestinations()">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
             </div>
         </div>
     </div>
+</div>
 
     <!-- Destinations Table -->
     <div class="card">
@@ -76,31 +81,34 @@
     let allDestinations = [];
     let categories = [];
     
-    // Load all data
-    async function loadAllData() {
-        try {
-            showLoading();
-            
-            // Load destinations
-            const destResponse = await fetch('/api/destinations/?page_size=100');
-            const destData = await destResponse.json();
-            allDestinations = destData.destinations;
-            
-            // Load categories
-            const catResponse = await fetch('/api/categories/');
-            categories = await catResponse.json();
-            
-            populateCategoryFilter();
-            displayDestinations(allDestinations);
-            
-        } catch (error) {
-            console.error('Error loading data:', error);
-            showAlert('error', 'Error loading destinations. Please refresh the page.');
-        } finally {
-            hideLoading();
-        }
+async function loadAllData() {
+    try {
+        showLoading();
+        
+        // ✅ Load ALL destinations (active and inactive)
+        const destResponse = await fetch('/api/destinations/?page_size=100&is_active=true');
+        const activeData = await destResponse.json();
+        
+        const inactiveResponse = await fetch('/api/destinations/?page_size=100&is_active=false');
+        const inactiveData = await inactiveResponse.json();
+        
+        // Combine both
+        allDestinations = [...activeData.destinations, ...inactiveData.destinations];
+        
+        // Load categories
+        const catResponse = await fetch('/api/categories/');
+        categories = await catResponse.json();
+        
+        populateCategoryFilter();
+        filterDestinations(); // Apply initial filter
+        
+    } catch (error) {
+        console.error('Error loading data:', error);
+        showAlert('error', 'Error loading destinations. Please refresh the page.');
+    } finally {
+        hideLoading();
     }
-    
+}    
     // Populate category filter
     function populateCategoryFilter() {
         const select = document.getElementById('categoryFilter');

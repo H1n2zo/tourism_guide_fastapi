@@ -157,18 +157,19 @@ async def update_destination(
 ):
     """Update destination"""
     
-    dest = db.query(Destination).filter(Destination.id == destination_id).first()
+     dest = db.query(Destination).filter(Destination.id == destination_id).first()
     if not dest:
         raise HTTPException(status_code=404, detail="Destination not found")
     
-    # Handle image upload
-    if image:
-        # Delete old image
+    # ✅ FIX: Only handle image if a NEW one is uploaded
+    if image and image.filename:  # Check if file actually exists
+        # Delete old image ONLY if new one is uploaded
         if dest.image_path:
             old_path = UPLOAD_DIR / dest.image_path
             if old_path.exists():
                 old_path.unlink()
         
+        # Upload new image
         ext = image.filename.split('.')[-1]
         filename = f"{uuid.uuid4()}_{int(datetime.now().timestamp())}.{ext}"
         file_path = UPLOAD_DIR / "destinations" / filename

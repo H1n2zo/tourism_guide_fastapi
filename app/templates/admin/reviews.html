@@ -186,72 +186,92 @@
     }
     
     // Load reviews
-    async function loadReviews() {
-        try {
-            // Note: Need to add an endpoint to get all reviews
-            // For now, we'll load reviews for each destination
-            reviews = [];
+ async function loadReviews() {
+    try {
+        // ✅ Load reviews for ALL destinations (no approval filter in main query)
+        reviews = [];
+        
+        for (const dest of allDestinations) {
+            // Get ALL reviews (approved and pending)
+            const approvedResponse = await fetch(`/api/reviews/destination/${dest.id}?is_approved=true`);
+            const approvedReviews = await approvedResponse.json();
             
-            for (const dest of allDestinations) {
-                const response = await fetch(`/api/reviews/destination/${dest.id}`);
-                const destReviews = await response.json();
-                reviews.push(...destReviews.map(r => ({...r, destination_name: dest.name})));
-            }
+            const pendingResponse = await fetch(`/api/reviews/destination/${dest.id}?is_approved=false`);
+            const pendingReviews = await pendingResponse.json();
             
-            displayReviews();
+            // Combine both
+            const allReviews = [
+                ...approvedReviews.map(r => ({...r, destination_name: dest.name})),
+                ...pendingReviews.map(r => ({...r, destination_name: dest.name}))
+            ];
             
-        } catch (error) {
-            console.error('Error loading reviews:', error);
+            reviews.push(...allReviews);
         }
+        
+        displayReviews();
+        
+    } catch (error) {
+        console.error('Error loading reviews:', error);
     }
+}
     
     // Display reviews
     function displayReviews() {
-        const tbody = document.querySelector('#reviewsTable tbody');
-        
-        if (!reviews || reviews.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="text-center text-muted py-5">
-                        <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
-                        <p>No reviews yet</p>
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-        
-        tbody.innerHTML = reviews.map(review => `
+    const tbody = document.querySelector('#reviewsTable tbody');
+    
+    if (!reviews || reviews.length === 0) {
+        tbody.innerHTML = `
             <tr>
-                <td><strong>${review.destination_name || 'Unknown'}</strong></td>
-                <td>${review.user_name || 'Anonymous'}</td>
-                <td>
-                    <div style="color: #ffc107;">
-                        ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}
-                    </div>
-                </td>
-                <td>${(review.comment || '').substring(0, 50)}${review.comment && review.comment.length > 50 ? '...' : ''}</td>
-                <td><small>${formatDate(review.created_at)}</small></td>
-                <td>
-                    ${review.is_approved 
-                        ? '<span class="badge bg-success">Approved</span>' 
-                        : '<span class="badge bg-warning">Pending</span>'
-                    }
-                </td>
-                <td class="table-actions">
-                    <a href="/destination/${review.destination_id}" class="btn btn-sm btn-info" target="_blank" title="View">
-                        <i class="fas fa-eye"></i>
-                    </a>
-                    <button class="btn btn-sm btn-warning" onclick="toggleReview(${review.id})" title="Toggle Approval">
-                        <i class="fas fa-toggle-on"></i>
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteReview(${review.id})" title="Delete">
-                        <i class="fas fa-trash"></i>
-                    </button>
+                <td colspan="7" class="text-center text-muted py-5">
+                    <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                    <p>No reviews yet</p>
                 </td>
             </tr>
-        `).join('');
+        `;
+        return;
     }
+    
+    // Sort: Pending first, then by date
+    reviews.sort((a, b) => {
+        if (a.is_approved !== b.is_approved) {
+            return a.is_approved ? 1 : -1; // Pending first
+        }
+        return new Date(b.created_at) - new Date(a.created_at);
+    });
+    
+    tbody.innerHTML = reviews.map(review => `
+        <tr class="${!review.is_approved ? 'table-warning' : ''}">
+            <td><strong>${review.destination_name || 'Unknown'}</strong></td>
+            <td>${review.user_name || 'Anonymous'}</td>
+            <td>
+                <div style="color: #ffc107;">
+                    ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}
+                </div>
+            </td>
+            <td>${(review.comment || '').substring(0, 50)}${review.comment && review.comment.length > 50 ? '...' : ''}</td>
+            <td><small>${formatDate(review.created_at)}</small></td>
+            <td>
+                ${review.is_approved 
+                    ? '<span class="badge bg-success">Approved</span>' 
+                    : '<span class="badge bg-warning">Pending</span>'
+                }
+            </td>
+            <td class="table-actions">
+                <a href="/destination/${review.destination_id}" class="btn btn-sm btn-info" target="_blank" title="View">
+                    <i class="fas fa-eye"></i>
+                </a>
+                <button class="btn btn-sm ${review.is_approved ? 'btn-warning' : 'btn-success'}" 
+                        onclick="toggleReview(${review.id})" 
+                        title="${review.is_approved ? 'Unapprove' : 'Approve'}">
+                    <i class="fas fa-toggle-${review.is_approved ? 'off' : 'on'}"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="deleteReview(${review.id})" title="Delete">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
     
     // Load feedback
     async function loadFeedback() {
