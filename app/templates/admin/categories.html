@@ -203,46 +203,52 @@
     }
     
     // Submit form
-    document.getElementById('categoryForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
+// In categories.html, change the submit handler:
+
+document.getElementById('categoryForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const editId = document.getElementById('editId').value;
+    
+    // ✅ Use FormData instead of JSON
+    const formData = new FormData();
+    formData.append('name', document.getElementById('categoryName').value);
+    formData.append('icon', document.getElementById('categoryIcon').value);
+    
+    try {
+        showLoading();
         
-        const editId = document.getElementById('editId').value;
-        const formData = new FormData();
+        const url = editId 
+            ? `/api/admin/categories/${editId}` 
+            : '/api/admin/categories';
         
-        formData.append('name', document.getElementById('categoryName').value);
-        formData.append('icon', document.getElementById('categoryIcon').value);
+        const method = editId ? 'PUT' : 'POST';
         
-        try {
-            showLoading();
-            
-            const url = editId 
-                ? `/api/admin/categories/${editId}` 
-                : '/api/admin/categories';
-            
-            const method = editId ? 'PUT' : 'POST';
-            
-            const response = await fetch(url, {
-                method: method,
-                headers: getAuthHeaders(),
-                body: formData
-            });
-            
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'Failed to save category');
-            }
-            
-            showAlert('success', `Category ${editId ? 'updated' : 'created'} successfully!`);
-            resetForm();
-            loadCategories();
-            
-        } catch (error) {
-            console.error('Error saving category:', error);
-            showAlert('error', error.message || 'Error saving category. Please try again.');
-        } finally {
-            hideLoading();
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                // ❌ DON'T add Content-Type
+            },
+            body: formData  // ✅ FormData, not JSON
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to save category');
         }
-    });
+        
+        showAlert('success', `Category ${editId ? 'updated' : 'created'} successfully!`);
+        resetForm();
+        loadCategories();
+        
+    } catch (error) {
+        console.error('Error saving category:', error);
+        showAlert('error', error.message || 'Error saving category. Please try again.');
+    } finally {
+        hideLoading();
+    }
+});
     
     // Delete category
     async function deleteCategory(id, name) {

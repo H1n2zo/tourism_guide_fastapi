@@ -262,49 +262,53 @@
     }
     
     // Submit form
-    document.getElementById('routeForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
+document.getElementById('routeForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const editId = document.getElementById('editId').value;
+    
+    // ✅ Use FormData
+    const formData = new FormData();
+    
+    formData.append('route_name', document.getElementById('routeName').value || '');
+    formData.append('origin_id', document.getElementById('originId').value);
+    formData.append('destination_id', document.getElementById('destinationId').value);
+    formData.append('transport_mode', document.getElementById('transportMode').value);
+    formData.append('distance_km', document.getElementById('distanceKm').value || '0');
+    formData.append('estimated_time_minutes', document.getElementById('estimatedTime').value || '0');
+    formData.append('base_fare', document.getElementById('baseFare').value || '0');
+    formData.append('fare_per_km', document.getElementById('farePerKm').value || '0');
+    formData.append('description', document.getElementById('description').value || '');
+    formData.append('is_active', document.getElementById('isActive').checked ? 'true' : 'false');
+    
+    try {
+        showLoading();
         
-        const editId = document.getElementById('editId').value;
-        const formData = new FormData();
+        const response = await fetch('/api/admin/routes', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                // ❌ DON'T add Content-Type
+            },
+            body: formData  // ✅ FormData
+        });
         
-        formData.append('route_name', document.getElementById('routeName').value || '');
-        formData.append('origin_id', document.getElementById('originId').value);
-        formData.append('destination_id', document.getElementById('destinationId').value);
-        formData.append('transport_mode', document.getElementById('transportMode').value);
-        formData.append('distance_km', document.getElementById('distanceKm').value || '0');
-        formData.append('estimated_time_minutes', document.getElementById('estimatedTime').value || '0');
-        formData.append('base_fare', document.getElementById('baseFare').value || '0');
-        formData.append('fare_per_km', document.getElementById('farePerKm').value || '0');
-        formData.append('description', document.getElementById('description').value || '');
-        formData.append('is_active', document.getElementById('isActive').checked);
-        
-        try {
-            showLoading();
-            
-            // Note: Currently only POST is supported, PUT for routes needs to be added to backend
-            const response = await fetch('/api/admin/routes', {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: formData
-            });
-            
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'Failed to save route');
-            }
-            
-            showAlert('success', 'Route saved successfully!');
-            resetForm();
-            loadAllData();
-            
-        } catch (error) {
-            console.error('Error saving route:', error);
-            showAlert('error', error.message || 'Error saving route. Please try again.');
-        } finally {
-            hideLoading();
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to save route');
         }
-    });
+        
+        showAlert('success', 'Route saved successfully!');
+        resetForm();
+        loadAllData();
+        
+    } catch (error) {
+        console.error('Error saving route:', error);
+        showAlert('error', error.message || 'Error saving route. Please try again.');
+    } finally {
+        hideLoading();
+    }
+});
     
     // Delete route
     async function deleteRoute(id, name) {

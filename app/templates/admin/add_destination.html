@@ -268,13 +268,13 @@
         try {
             showLoading();
             
-            const response = await fetch('/api/admin/destinations', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-                },
-                body: formData
-            });
+        const response = await fetch('/api/admin/destinations', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            },
+            body: formData
+        });
             
             if (!response.ok) {
                 const error = await response.json();
