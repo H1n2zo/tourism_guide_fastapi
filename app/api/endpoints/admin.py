@@ -154,7 +154,77 @@ async def create_destination(
     
     return {"message": "Destination created successfully", "id": new_dest.id}
 
-
+@router.put("/destinations/{destination_id}")
+async def update_destination(
+    destination_id: int,
+    name: str = Form(...),
+    category_id: int = Form(...),
+    description: Optional[str] = Form(None),
+    address: Optional[str] = Form(None),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
+    contact_number: Optional[str] = Form(None),
+    email: Optional[str] = Form(None),
+    website: Optional[str] = Form(None),
+    opening_hours: Optional[str] = Form(None),
+    entry_fee: Optional[str] = Form(None),
+    is_active: bool = Form(True),
+    image: Optional[UploadFile] = File(None),
+    additional_photos: List[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """Update existing destination with multiple photos"""
+    
+    # Get existing destination
+    dest = db.query(Destination).filter(Destination.id == destination_id).first()
+    if not dest:
+        raise HTTPException(status_code=404, detail="Destination not found")
+    
+    # Update all fields
+    dest.name = name
+    dest.category_id = category_id
+    dest.description = description
+    dest.address = address
+    dest.latitude = latitude
+    dest.longitude = longitude
+    dest.contact_number = contact_number
+    dest.email = email
+    dest.website = website
+    dest.opening_hours = opening_hours
+    dest.entry_fee = entry_fee
+    dest.is_active = is_active
+    
+    # Handle featured image update if provided
+    if image and image.filename:
+        # Delete old image if exists
+        if dest.image_path:
+            old_image_path = UPLOAD_DIR / dest.image_path
+            if old_image_path.exists():
+                old_image_path.unlink()
+        
+        # Save new image
+        image_path = save_uploaded_file(image, "destinations")
+        dest.image_path = image_path
+    
+    db.commit()
+    
+    # Handle additional photos
+    if additional_photos and additional_photos[0].filename:
+        for photo_file in additional_photos:
+            if photo_file.filename:
+                photo_path = save_uploaded_file(photo_file, "destinations")
+                
+                new_image = DestinationImage(
+                    destination_id=destination_id,
+                    image_path=photo_path,
+                    caption=""
+                )
+                db.add(new_image)
+        
+        db.commit()
+    
+    return {"message": "Destination updated successfully"}
 # app/api/endpoints/admin.py - ADD THIS ENDPOINT for Routes Update
 
 @router.put("/routes/{route_id}")
