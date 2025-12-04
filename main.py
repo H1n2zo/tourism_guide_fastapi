@@ -203,4 +203,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Starting Tourism Guide System...")
-    uvicorn.run("main:app", host="192.168.1.3", port=8000, reload=True)
+    uvicorn.run("main:app", host="172.16.2.141", port=8000, reload=True)
