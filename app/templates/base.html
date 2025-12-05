@@ -21,7 +21,53 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/static/css/style.css">
 
-    
+    <style>
+        /* Floating Feedback Button */
+        .feedback-float-btn {
+            position: fixed;
+            bottom: 90px;
+            right: 30px;
+            z-index: 999;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 15px 25px;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+            cursor: pointer;
+            transition: all 0.3s;
+            animation: pulse-feedback 2s infinite;
+        }
+
+        .feedback-float-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+
+        @keyframes pulse-feedback {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* Star Rating in Modal */
+        .star-rating-modal {
+            direction: rtl;
+            display: inline-flex;
+            font-size: 2.5rem;
+        }
+        .star-rating-modal input[type="radio"] { display: none; }
+        .star-rating-modal label {
+            color: #ddd;
+            cursor: pointer;
+            padding: 0 10px;
+        }
+        .star-rating-modal label:hover,
+        .star-rating-modal label:hover ~ label,
+        .star-rating-modal input[type="radio"]:checked ~ label {
+            color: #ffc107;
+        }
+    </style>
     
     {% block extra_css %}{% endblock %}
 </head>
@@ -50,11 +96,6 @@
                     <li class="nav-item">
                         <a class="nav-link" href="/#routes">
                             <i class="fas fa-route"></i> Find Route
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.url.path == '/feedback' %}active{% endif %}" href="/feedback">
-                            <i class="fas fa-comment"></i> Feedback
                         </a>
                     </li>
                 </ul>
@@ -86,6 +127,89 @@
         <i class="fas fa-arrow-up"></i>
     </button>
 
+    <!-- Floating Feedback Button -->
+    <button class="feedback-float-btn" onclick="openFeedbackModal()">
+        <i class="fas fa-comment-dots"></i> Send Feedback
+    </button>
+
+    <!-- Feedback Modal -->
+    <div class="modal fade" id="feedbackModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="fas fa-star"></i> Share Your Feedback</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="feedbackFormContainer">
+                        <form id="quickFeedbackForm" onsubmit="submitQuickFeedback(event)">
+                            <div class="mb-3">
+                                <label class="form-label">Your Name *</label>
+                                <input type="text" class="form-control" id="quick_user_name" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Email (Optional)</label>
+                                <input type="email" class="form-control" id="quick_email">
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label">Rate the Tourism Guide System *</label>
+                                <div class="text-center">
+                                    <div class="star-rating-modal">
+                                        <input type="radio" name="quick_rating" value="5" id="quick_rating5" required>
+                                        <label for="quick_rating5"><i class="fas fa-star"></i></label>
+                                        <input type="radio" name="quick_rating" value="4" id="quick_rating4">
+                                        <label for="quick_rating4"><i class="fas fa-star"></i></label>
+                                        <input type="radio" name="quick_rating" value="3" id="quick_rating3">
+                                        <label for="quick_rating3"><i class="fas fa-star"></i></label>
+                                        <input type="radio" name="quick_rating" value="2" id="quick_rating2">
+                                        <label for="quick_rating2"><i class="fas fa-star"></i></label>
+                                        <input type="radio" name="quick_rating" value="1" id="quick_rating1">
+                                        <label for="quick_rating1"><i class="fas fa-star"></i></label>
+                                    </div>
+                                    <div class="mt-2">
+                                        <small class="text-muted">Click on a star to rate</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Category *</label>
+                                <select class="form-select" id="quick_category" required>
+                                    <option value="general">General Feedback</option>
+                                    <option value="usability">Usability & Navigation</option>
+                                    <option value="features">Features & Functionality</option>
+                                    <option value="content">Content & Information</option>
+                                    <option value="design">Design & Interface</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Your Feedback *</label>
+                                <textarea class="form-control" id="quick_feedback" rows="4" 
+                                          placeholder="Tell us what you think..." 
+                                          required minlength="10"></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-success w-100" id="submitFeedbackBtn">
+                                <i class="fas fa-paper-plane"></i> Submit Feedback
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Success Message (hidden by default) -->
+                    <div id="feedbackSuccessMessage" style="display: none;" class="text-center py-4">
+                        <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                        <h4 class="mt-3">Thank You!</h4>
+                        <p class="text-muted">Your feedback has been submitted successfully.</p>
+                        <button class="btn btn-primary" onclick="closeFeedbackModal()">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
@@ -96,6 +220,74 @@
     <!-- Custom JS -->
     <script src="/static/js/main.js"></script>
     <script src="/static/js/auth.js"></script>
+    
+    <script>
+        let feedbackModal;
+
+        // Initialize modal
+        document.addEventListener('DOMContentLoaded', function() {
+            feedbackModal = new bootstrap.Modal(document.getElementById('feedbackModal'));
+        });
+
+        // Open feedback modal
+        function openFeedbackModal() {
+            // Reset form
+            document.getElementById('quickFeedbackForm').reset();
+            document.getElementById('feedbackFormContainer').style.display = 'block';
+            document.getElementById('feedbackSuccessMessage').style.display = 'none';
+            
+            feedbackModal.show();
+        }
+
+        // Close feedback modal
+        function closeFeedbackModal() {
+            feedbackModal.hide();
+        }
+
+        // Submit quick feedback
+        async function submitQuickFeedback(event) {
+            event.preventDefault();
+            
+            const btn = document.getElementById('submitFeedbackBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
+            
+            const feedbackData = {
+                user_name: document.getElementById('quick_user_name').value,
+                email: document.getElementById('quick_email').value || null,
+                rating: parseInt(document.querySelector('input[name="quick_rating"]:checked').value),
+                category: document.getElementById('quick_category').value,
+                feedback: document.getElementById('quick_feedback').value
+            };
+            
+            try {
+                const response = await fetch('/api/feedback/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(feedbackData)
+                });
+                
+                if (response.ok) {
+                    // Show success message
+                    document.getElementById('feedbackFormContainer').style.display = 'none';
+                    document.getElementById('feedbackSuccessMessage').style.display = 'block';
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + (error.detail || 'Please try again.'));
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            } catch (error) {
+                console.error('Error submitting feedback:', error);
+                alert('Error submitting feedback. Please try again.');
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+    </script>
     
     {% block extra_js %}{% endblock %}
 </body>
