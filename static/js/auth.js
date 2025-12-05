@@ -47,36 +47,24 @@ function updateNavigation() {
     const existingAuthItems = navbarNav.querySelectorAll('.auth-nav-item');
     existingAuthItems.forEach(item => item.remove());
     
-    if (currentUser) {
-        // User is logged in
-        const userDropdown = document.createElement('li');
-        userDropdown.className = 'nav-item dropdown auth-nav-item';
-        userDropdown.innerHTML = `
+    // ✅ ONLY show admin dropdown if logged in as admin
+    if (currentUser && currentUser.role === 'admin') {
+        const adminDropdown = document.createElement('li');
+        adminDropdown.className = 'nav-item dropdown auth-nav-item';
+        adminDropdown.innerHTML = `
             <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                <i class="fas fa-user"></i> ${currentUser.username}
+                <i class="fas fa-user-shield"></i> ${currentUser.username}
             </a>
             <ul class="dropdown-menu">
-                ${currentUser.role === 'admin' ? `
-                    <li><a class="dropdown-item" href="/admin/dashboard">
-                        <i class="fas fa-tachometer-alt"></i> Admin Panel
-                    </a></li>
-                ` : ''}
+                <li><a class="dropdown-item" href="/admin/dashboard">
+                    <i class="fas fa-tachometer-alt"></i> Admin Panel
+                </a></li>
                 <li><a class="dropdown-item" href="#" onclick="handleLogout()">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </a></li>
             </ul>
         `;
-        navbarNav.appendChild(userDropdown);
-    } else {
-        // User is not logged in
-        const loginItem = document.createElement('li');
-        loginItem.className = 'nav-item auth-nav-item';
-        loginItem.innerHTML = `
-            <a class="nav-link" href="/login">
-                <i class="fas fa-sign-in-alt"></i> Login
-            </a>
-        `;
-        navbarNav.appendChild(loginItem);
+        navbarNav.appendChild(adminDropdown);
     }
 }
 

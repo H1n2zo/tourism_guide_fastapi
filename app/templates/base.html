@@ -73,6 +73,14 @@
         <p><small>Powered by FastAPI, OpenStreetMap & Leaflet (100% Free & Open Source)</small></p>
     </footer>
 
+    <script>
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+                window.location.href = '/login';
+            }
+        });
+    </script>
+
     <!-- Back to Top Button -->
     <button id="backToTop" class="back-to-top" title="Back to top">
         <i class="fas fa-arrow-up"></i>

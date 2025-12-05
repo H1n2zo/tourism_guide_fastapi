@@ -186,8 +186,6 @@ async def admin_users(request: Request):
         return redirect
     return templates.TemplateResponse("admin/users.html", {"request": request})
 
-
-# ============ HEALTH CHECK ============
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
