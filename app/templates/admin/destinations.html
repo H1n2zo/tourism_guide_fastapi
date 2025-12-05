@@ -1,284 +1,594 @@
-{% extends "admin/base.html" %}
+{% extends "base.html" %}
 
-{% block title %}Manage Destinations{% endblock %}
+{% block title %}Destination Details - Tourism Guide{% endblock %}
+
+{% block extra_css %}
+<style>
+    .hero-image {
+        height: 500px;
+        background-size: cover;
+        background-position: center;
+        position: relative;
+        margin-top: -100px;
+    }
+    .hero-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+        color: white;
+        padding: 40px;
+    }
+    .info-card {
+        border-left: 4px solid #667eea;
+        background: #f8f9fa;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    .rating {
+        color: #ffc107;
+        font-size: 1.2rem;
+    }
+    #map {
+        height: 400px;
+        border-radius: 10px;
+    }
+    .gallery-img {
+        height: 150px;
+        object-fit: cover;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: transform 0.3s;
+    }
+    .gallery-img:hover {
+        transform: scale(1.05);
+    }
+    .review-card {
+        border-left: 4px solid #28a745;
+        background: #f8f9fa;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 5px;
+    }
+    .review-rating {
+        color: #ffc107;
+        font-size: 1rem;
+    }
+    .star-rating {
+        display: flex;
+        gap: 5px;
+        font-size: 2rem;
+        cursor: pointer;
+    }
+    .star-rating i {
+        color: #ddd;
+        transition: color 0.2s;
+    }
+    .star-rating i.active {
+        color: #ffc107;
+    }
+    
+    /* NEW: Review Image Styles */
+    .review-images {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+    }
+    .review-img {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: transform 0.3s;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    .review-img:hover {
+        transform: scale(1.1);
+    }
+    
+    /* NEW: Image Upload Preview */
+    .image-preview-container {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+    }
+    .image-preview-item {
+        position: relative;
+        width: 100px;
+        height: 100px;
+    }
+    .image-preview-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 5px;
+    }
+    .image-preview-item .remove-btn {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        font-size: 12px;
+        line-height: 1;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fas fa-map-pin"></i> Manage Destinations</h2>
-        <a href="/admin/destinations/add" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Add New Destination
-        </a>
-    </div>
-
-    <!-- Alert Container -->
-    <div id="alertContainer"></div>
-
-    <!-- Search and Filter -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-5">
-                    <input type="text" class="form-control" id="searchInput" 
-                           placeholder="Search destinations..." 
-                           onkeyup="filterDestinations()">
-                </div>
-                <div class="col-md-3">
-                    <select class="form-select" id="categoryFilter" onchange="filterDestinations()">
-                        <option value="">All Categories</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <select class="form-select" id="statusFilter" onchange="filterDestinations()">
-                        <option value="">All Status</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-primary w-100" onclick="filterDestinations()">
-                        <i class="fas fa-filter"></i> Filter
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Destinations Table -->
-    <div class="card">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover" id="destinationsTable">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Image</th>
-                            <th>Name</th>
-                            <th>Category</th>
-                            <th>Location</th>
-                            <th>Status</th>
-                            <th>Created</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td colspan="7" class="text-center">
-                                <div class="spinner-border" role="status"></div>
-                                <p class="mt-2">Loading destinations...</p>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+<div id="destinationContainer">
+    <!-- Content will be loaded here -->
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<!-- Lightbox2 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/css/lightbox.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/js/lightbox.min.js"></script>
+
 <script>
-    let allDestinations = [];
-    let categories = [];
-    
-    // Load all data - FIXED to load ALL destinations regardless of status
-    async function loadAllData() {
-        try {
-            showLoading();
-            
-            // FIXED: Load ALL destinations (active AND inactive)
-            const destResponse = await fetch('/api/destinations/?page_size=100&is_active=true');
-            const activeData = await destResponse.json();
-            
-            const inactiveResponse = await fetch('/api/destinations/?page_size=100&is_active=false');
-            const inactiveData = await inactiveResponse.json();
-            
-            // Combine both active and inactive destinations
-            allDestinations = [...activeData.destinations, ...inactiveData.destinations];
-            
-            // Load categories
-            const catResponse = await fetch('/api/categories/');
-            categories = await catResponse.json();
-            
-            populateCategoryFilter();
-            displayDestinations(allDestinations);
-            
-        } catch (error) {
-            console.error('Error loading data:', error);
-            showAlert('error', 'Error loading destinations. Please refresh the page.');
-        } finally {
-            hideLoading();
+const pathParts = window.location.pathname.split('/');
+const destinationId = parseInt(pathParts[pathParts.length - 1]);
+let destinationData = null;
+let map = null;
+let selectedImages = [];  // NEW: Track selected review images
+
+// Load destination data
+async function loadDestination() {
+    try {
+        const response = await fetch(`/api/destinations/${destinationId}`);
+        if (!response.ok) {
+            throw new Error('Destination not found');
         }
-    }
-    
-    // Populate category filter
-    function populateCategoryFilter() {
-        const select = document.getElementById('categoryFilter');
+        destinationData = await response.json();
+        displayDestination();
+        loadReviews();
         
-        categories.forEach(cat => {
-            const option = document.createElement('option');
-            option.value = cat.id;
-            option.textContent = cat.name;
-            select.appendChild(option);
-        });
-    }
-    
-    // Display destinations
-    function displayDestinations(destinations) {
-        const tbody = document.querySelector('#destinationsTable tbody');
-        
-        if (!destinations || destinations.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="text-center text-muted py-5">
-                        <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
-                        <p>No destinations found</p>
-                        <a href="/admin/destinations/add" class="btn btn-primary">
-                            <i class="fas fa-plus"></i> Add Your First Destination
-                        </a>
-                    </td>
-                </tr>
-            `;
-            return;
+        if (destinationData.latitude && destinationData.longitude) {
+            initMap();
         }
-        
-        tbody.innerHTML = destinations.map(dest => {
-            const imageUrl = dest.image_path 
-                ? `/uploads/${dest.image_path}` 
-                : 'https://via.placeholder.com/80x60?text=' + encodeURIComponent(dest.name);
-            
-            const coords = dest.latitude && dest.longitude
-                ? `${parseFloat(dest.latitude).toFixed(4)}, ${parseFloat(dest.longitude).toFixed(4)}`
-                : '<span class="text-muted">No coordinates</span>';
-            
-            return `
-                <tr data-id="${dest.id}" ${!dest.is_active ? 'style="opacity: 0.6; background: #f8f9fa;"' : ''}>
-                    <td>
-                        <img src="${imageUrl}" alt="${dest.name}" 
-                             class="rounded" style="width: 80px; height: 60px; object-fit: cover;">
-                    </td>
-                    <td><strong>${dest.name}</strong></td>
-                    <td>
-                        <span class="badge bg-secondary">
-                            <i class="fas ${dest.category_icon || 'fa-tag'}"></i>
-                            ${dest.category_name || 'Uncategorized'}
-                        </span>
-                    </td>
-                    <td><small>${coords}</small></td>
-                    <td>
-                        ${dest.is_active 
-                            ? '<span class="badge bg-success">Active</span>' 
-                            : '<span class="badge bg-danger">Inactive</span>'
-                        }
-                    </td>
-                    <td><small>${formatDate(dest.created_at)}</small></td>
-                    <td class="table-actions">
-                        <div class="btn-group" role="group">
-                            <a href="/admin/destinations/edit/${dest.id}" 
-                               class="btn btn-sm btn-primary" title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <a href="/destination/${dest.id}" 
-                               class="btn btn-sm btn-info" title="View" target="_blank">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            <button onclick="toggleStatus(${dest.id}, ${dest.is_active})" 
-                                    class="btn btn-sm btn-warning" title="Toggle Status">
-                                <i class="fas fa-toggle-on"></i>
+    } catch (error) {
+        console.error('Error loading destination:', error);
+        document.getElementById('destinationContainer').innerHTML = `
+            <div class="container mt-5">
+                <div class="alert alert-danger">
+                    <h4>Destination Not Found</h4>
+                    <p>The requested destination could not be found.</p>
+                    <a href="/" class="btn btn-primary">Go to Homepage</a>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Display destination (same as before, truncated for space)
+function displayDestination() {
+    const imageUrl = destinationData.image_path ? `/uploads/${destinationData.image_path}` : `https://via.placeholder.com/1200x500?text=${encodeURIComponent(destinationData.name)}`;
+    
+    const ratingHtml = destinationData.review_count > 0 && destinationData.avg_rating ? `
+        <div class="rating mb-2">
+            ${'★'.repeat(Math.round(destinationData.avg_rating))}${'☆'.repeat(5 - Math.round(destinationData.avg_rating))}
+            <span class="ms-2">${destinationData.avg_rating.toFixed(1)} / 5</span>
+            <span class="ms-2">(${destinationData.review_count} reviews)</span>
+        </div>
+    ` : '';
+    
+    const html = `
+        <!-- Hero Section -->
+        <div class="hero-image" style="background-image: url('${imageUrl}');">
+            <div class="hero-overlay">
+                <div class="container">
+                    <span class="badge bg-primary mb-2">
+                        <i class="fas ${destinationData.category_icon || 'fa-map-marker-alt'}"></i> ${destinationData.category_name || 'Category'}
+                    </span>
+                    <h1 class="display-4 fw-bold">${destinationData.name}</h1>
+                    ${ratingHtml}
+                    <p class="lead"><i class="fas fa-map-marker-alt"></i> ${destinationData.address || 'Address not available'}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="container my-5">
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- Description -->
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h3 class="card-title"><i class="fas fa-info-circle"></i> About This Place</h3>
+                            <p class="card-text">${destinationData.description || 'No description available.'}</p>
+                        </div>
+                    </div>
+
+                    <!-- Gallery -->
+                    ${destinationData.images && destinationData.images.length > 0 ? `
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h3 class="card-title"><i class="fas fa-images"></i> Photo Gallery</h3>
+                            <div class="row g-2">
+                                ${destinationData.images.map(img => `
+                                    <div class="col-md-4">
+                                        <a href="/uploads/${img.image_path}" data-lightbox="gallery" data-title="${img.caption || ''}">
+                                            <img src="/uploads/${img.image_path}" class="img-fluid gallery-img" alt="${img.caption || 'Gallery image'}">
+                                        </a>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <!-- Map -->
+                    ${destinationData.latitude && destinationData.longitude ? `
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h3 class="card-title"><i class="fas fa-map"></i> Location</h3>
+                            <div id="map"></div>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <!-- Reviews Section -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h4 class="mb-0"><i class="fas fa-comments"></i> Reviews & Ratings</h4>
+                        </div>
+                        <div class="card-body">
+                            <div id="reviewsContainer">
+                                <p class="text-muted">Loading reviews...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Write Review Section -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h4 class="mb-0"><i class="fas fa-pen"></i> Write a Review</h4>
+                        </div>
+                        <div class="card-body">
+                            <form id="reviewForm" onsubmit="submitReview(event)" enctype="multipart/form-data">
+                                <div class="mb-3">
+                                    <label for="review_name" class="form-label">Your Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="review_name" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Rating <span class="text-danger">*</span></label>
+                                    <div class="star-rating" id="starRating">
+                                        <i class="far fa-star" data-rating="1"></i>
+                                        <i class="far fa-star" data-rating="2"></i>
+                                        <i class="far fa-star" data-rating="3"></i>
+                                        <i class="far fa-star" data-rating="4"></i>
+                                        <i class="far fa-star" data-rating="5"></i>
+                                    </div>
+                                    <input type="hidden" id="rating" required>
+                                    <small class="text-muted">Click on the stars to rate</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="comment" class="form-label">Your Review <span class="text-danger">*</span></label>
+                                    <textarea class="form-control" id="comment" rows="4" 
+                                              placeholder="Share your experience about this place..." required></textarea>
+                                </div>
+
+                                <!-- NEW: Image Upload -->
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        <i class="fas fa-camera"></i> Add Photos (Optional, Max 5)
+                                    </label>
+                                    <input type="file" class="form-control" id="reviewImages" 
+                                           accept="image/*" multiple onchange="previewReviewImages(this)">
+                                    <small class="text-muted">Share photos from your visit (Max 5 images, 5MB each)</small>
+                                    <div id="imagePreviewContainer" class="image-preview-container"></div>
+                                </div>
+
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-paper-plane"></i> Submit Review
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar (same as before) -->
+                <div class="col-lg-4">
+                    <!-- Quick Info -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-clipboard-list"></i> Quick Information</h5>
+                        </div>
+                        <div class="card-body">
+                            ${destinationData.opening_hours ? `
+                            <div class="info-card">
+                                <h6><i class="fas fa-clock"></i> Opening Hours</h6>
+                                <p class="mb-0">${destinationData.opening_hours}</p>
+                            </div>
+                            ` : ''}
+
+                            ${destinationData.entry_fee ? `
+                            <div class="info-card">
+                                <h6><i class="fas fa-ticket-alt"></i> Entry Fee</h6>
+                                <p class="mb-0">${destinationData.entry_fee}</p>
+                            </div>
+                            ` : ''}
+
+                            ${destinationData.contact_number ? `
+                            <div class="info-card">
+                                <h6><i class="fas fa-phone"></i> Contact</h6>
+                                <p class="mb-0">${destinationData.contact_number}</p>
+                            </div>
+                            ` : ''}
+
+                            ${destinationData.email ? `
+                            <div class="info-card">
+                                <h6><i class="fas fa-envelope"></i> Email</h6>
+                                <p class="mb-0">${destinationData.email}</p>
+                            </div>
+                            ` : ''}
+
+                            ${destinationData.website ? `
+                            <div class="info-card">
+                                <h6><i class="fas fa-globe"></i> Website</h6>
+                                <p class="mb-0"><a href="${destinationData.website}" target="_blank">Visit Website</a></p>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    <!-- Share This -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="fas fa-share-alt"></i> Share This Place</h5>
+                        </div>
+                        <div class="card-body">
+                            <button class="btn btn-primary w-100 mb-2" onclick="shareOnFacebook()">
+                                <i class="fab fa-facebook"></i> Share on Facebook
                             </button>
-                            <button onclick="deleteDestination(${dest.id}, '${dest.name.replace(/'/g, "\\'")}')" 
-                                    class="btn btn-sm btn-danger" title="Delete">
-                                <i class="fas fa-trash"></i>
+                            <button class="btn btn-info w-100 mb-2" onclick="shareOnTwitter()">
+                                <i class="fab fa-twitter"></i> Share on Twitter
+                            </button>
+                            <button class="btn btn-secondary w-100" onclick="copyLink()">
+                                <i class="fas fa-link"></i> Copy Link
                             </button>
                         </div>
-                    </td>
-                </tr>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="card">
+                        <div class="card-body">
+                            <h5><i class="fas fa-map-marked-alt"></i> Plan Your Visit</h5>
+                            <a href="/#routes" class="btn btn-primary w-100 mb-2">
+                                <i class="fas fa-route"></i> Find Route Here
+                            </a>
+                            <a href="/#destinations" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-compass"></i> Explore More Places
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('destinationContainer').innerHTML = html;
+    
+    // Initialize star rating
+    initStarRating();
+}
+
+// NEW: Preview review images before upload
+function previewReviewImages(input) {
+    const container = document.getElementById('imagePreviewContainer');
+    container.innerHTML = '';
+    selectedImages = [];
+    
+    if (input.files) {
+        const files = Array.from(input.files).slice(0, 5); // Max 5 images
+        
+        files.forEach((file, index) => {
+            selectedImages.push(file);
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const div = document.createElement('div');
+                div.className = 'image-preview-item';
+                div.innerHTML = `
+                    <img src="${e.target.result}" alt="Preview ${index + 1}">
+                    <button type="button" class="remove-btn" onclick="removePreviewImage(${index})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                container.appendChild(div);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+}
+
+// NEW: Remove preview image
+function removePreviewImage(index) {
+    selectedImages.splice(index, 1);
+    
+    // Update file input
+    const dataTransfer = new DataTransfer();
+    selectedImages.forEach(file => dataTransfer.items.add(file));
+    document.getElementById('reviewImages').files = dataTransfer.files;
+    
+    // Re-render previews
+    previewReviewImages(document.getElementById('reviewImages'));
+}
+
+// Load reviews with images
+async function loadReviews() {
+    try {
+        const response = await fetch(`/api/reviews/destination/${destinationId}`);
+        const reviews = await response.json();
+        
+        const container = document.getElementById('reviewsContainer');
+        
+        if (reviews.length === 0) {
+            container.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No reviews yet. Be the first to share your experience!
+                </div>
             `;
-        }).join('');
+            return;
+        }
+        
+        container.innerHTML = `
+            <h5 class="mb-3">What visitors are saying:</h5>
+            ${reviews.map(review => `
+                <div class="review-card">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 class="mb-1"><i class="fas fa-user-circle"></i> ${review.user_name}</h6>
+                            <div class="review-rating">
+                                ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}
+                            </div>
+                        </div>
+                        <small class="text-muted">
+                            <i class="fas fa-clock"></i> ${new Date(review.created_at).toLocaleDateString()}
+                        </small>
+                    </div>
+                    <p class="mb-2">${review.comment || ''}</p>
+                    
+                    ${review.images && review.images.length > 0 ? `
+                        <div class="review-images">
+                            ${review.images.map(img => `
+                                <a href="/uploads/${img.image_path}" data-lightbox="review-${review.id}">
+                                    <img src="/uploads/${img.image_path}" class="review-img" alt="Review photo">
+                                </a>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('')}
+        `;
+    } catch (error) {
+        console.error('Error loading reviews:', error);
+    }
+}
+
+// Initialize star rating
+function initStarRating() {
+    const stars = document.querySelectorAll('#starRating i');
+    const ratingInput = document.getElementById('rating');
+    
+    stars.forEach(star => {
+        star.addEventListener('click', function() {
+            const rating = this.getAttribute('data-rating');
+            ratingInput.value = rating;
+            
+            stars.forEach((s, index) => {
+                if (index < rating) {
+                    s.classList.remove('far');
+                    s.classList.add('fas', 'active');
+                } else {
+                    s.classList.remove('fas', 'active');
+                    s.classList.add('far');
+                }
+            });
+        });
+    });
+}
+
+// Submit review with images
+async function submitReview(event) {
+    event.preventDefault();
+    
+    const rating = document.getElementById('rating').value;
+    
+    if (!rating) {
+        alert('Please select a rating');
+        return;
     }
     
-    // Filter destinations
-    function filterDestinations() {
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-        const categoryId = document.getElementById('categoryFilter').value;
-        const status = document.getElementById('statusFilter').value;
-        
-        const filtered = allDestinations.filter(dest => {
-            const matchSearch = !searchTerm || 
-                dest.name.toLowerCase().includes(searchTerm) ||
-                (dest.description && dest.description.toLowerCase().includes(searchTerm));
-            
-            const matchCategory = !categoryId || dest.category_id == categoryId;
-            
-            const matchStatus = !status || 
-                (status === 'active' && dest.is_active) ||
-                (status === 'inactive' && !dest.is_active);
-            
-            return matchSearch && matchCategory && matchStatus;
+    // Create FormData for multipart upload
+    const formData = new FormData();
+    formData.append('destination_id', destinationId);
+    formData.append('user_name', document.getElementById('review_name').value);
+    formData.append('rating', rating);
+    formData.append('comment', document.getElementById('comment').value);
+    
+    // Add images
+    const imageFiles = document.getElementById('reviewImages').files;
+    for (let i = 0; i < imageFiles.length; i++) {
+        formData.append('images', imageFiles[i]);
+    }
+    
+    try {
+        const response = await fetch('/api/reviews/', {
+            method: 'POST',
+            body: formData  // Don't set Content-Type header for FormData
         });
         
-        displayDestinations(filtered);
-    }
-    
-    // Toggle destination status
-    async function toggleStatus(id, currentStatus) {
-        if (!confirmDelete(`Toggle status to ${currentStatus ? 'Inactive' : 'Active'}?`)) {
-            return;
-        }
-        
-        try {
-            showLoading();
-            
-            const response = await fetch(`/api/admin/destinations/${id}/toggle`, {
-                method: 'PATCH',
-                headers: getAuthHeaders()
+        if (response.ok) {
+            alert('Thank you for your review!');
+            document.getElementById('reviewForm').reset();
+            document.getElementById('imagePreviewContainer').innerHTML = '';
+            selectedImages = [];
+            document.querySelectorAll('#starRating i').forEach(s => {
+                s.classList.remove('fas', 'active');
+                s.classList.add('far');
             });
-            
-            if (!response.ok) {
-                throw new Error('Failed to toggle status');
-            }
-            
-            showAlert('success', 'Status updated successfully!');
-            loadAllData();
-            
-        } catch (error) {
-            console.error('Error toggling status:', error);
-            showAlert('error', 'Error updating status. Please try again.');
-        } finally {
-            hideLoading();
+            loadReviews();
+            loadDestination(); // Reload to update rating
+        } else {
+            const error = await response.json();
+            alert('Error submitting review: ' + (error.detail || 'Please try again.'));
         }
+    } catch (error) {
+        console.error('Error submitting review:', error);
+        alert('Error submitting review. Please try again.');
     }
+}
+
+// Initialize map
+function initMap() {
+    const lat = parseFloat(destinationData.latitude);
+    const lng = parseFloat(destinationData.longitude);
     
-    // Delete destination
-    async function deleteDestination(id, name) {
-        if (!confirmDelete(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
-            return;
-        }
-        
-        try {
-            showLoading();
-            
-            const response = await fetch(`/api/admin/destinations/${id}`, {
-                method: 'DELETE',
-                headers: getAuthHeaders()
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to delete destination');
-            }
-            
-            showAlert('success', 'Destination deleted successfully!');
-            loadAllData();
-            
-        } catch (error) {
-            console.error('Error deleting destination:', error);
-            showAlert('error', 'Error deleting destination. Please try again.');
-        } finally {
-            hideLoading();
-        }
-    }
+    map = L.map('map').setView([lat, lng], 15);
     
-    // Load data on page load
-    document.addEventListener('DOMContentLoaded', loadAllData);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(map);
+    
+    L.marker([lat, lng])
+        .addTo(map)
+        .bindPopup(`<h6>${destinationData.name}</h6><p>${destinationData.address}</p>`)
+        .openPopup();
+}
+
+// Share functions
+function shareOnFacebook() {
+    const url = encodeURIComponent(window.location.href);
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
+}
+
+function shareOnTwitter() {
+    const url = encodeURIComponent(window.location.href);
+    const text = encodeURIComponent(destinationData.name);
+    window.open(`https://twitter.com/intent/tweet?url=${url}&text=${text}`, '_blank');
+}
+
+function copyLink() {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+        alert('Link copied to clipboard!');
+    });
+}
+
+// Load on page ready
+document.addEventListener('DOMContentLoaded', loadDestination);
 </script>
 {% endblock %}

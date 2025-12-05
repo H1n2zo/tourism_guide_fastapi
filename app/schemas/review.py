@@ -1,7 +1,16 @@
-# app/schemas/review.py - Pydantic Schemas for Reviews
+# app/schemas/review.py - Pydantic Schemas for Reviews (UPDATED WITH IMAGES)
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
+
+
+class ReviewImageResponse(BaseModel):
+    id: int
+    image_path: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
 
 
 class ReviewCreate(BaseModel):
@@ -19,6 +28,7 @@ class ReviewResponse(BaseModel):
     comment: Optional[str]
     is_approved: bool
     created_at: datetime
+    images: List[ReviewImageResponse] = []
     
     class Config:
         from_attributes = True

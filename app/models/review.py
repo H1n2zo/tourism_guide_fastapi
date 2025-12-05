@@ -1,4 +1,4 @@
-# app/models/review.py - Review Database Model
+# app/models/review.py - Review Database Model (UPDATED WITH IMAGES)
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, CheckConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -25,3 +25,4 @@ class Review(Base):
     # Relationships
     destination = relationship("Destination", back_populates="reviews")
     user = relationship("User", back_populates="reviews")
+    images = relationship("ReviewImage", back_populates="review", cascade="all, delete-orphan")

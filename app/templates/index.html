@@ -287,7 +287,7 @@ function displayDestinations(destinations) {
             <small class="rating-text">${dest.avg_rating.toFixed(1)} / 5 (${dest.review_count} reviews)</small>
         ` : `<div class="not-rated"><i class="far fa-star"></i> Not rated yet</div>`;
         
-        const card = `
+    const card = `
             <div class="col-md-4">
                 <div class="card destination-card" onclick="navigateToDestination(${dest.id})" style="cursor: pointer;">
                     <div class="position-relative">

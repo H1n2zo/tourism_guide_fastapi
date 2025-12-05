@@ -2,6 +2,28 @@
 
 {% block title %}Reviews & Feedback{% endblock %}
 
+{% block extra_css %}
+<style>
+    .review-images {
+        display: flex;
+        gap: 5px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+    }
+    .review-img-thumb {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: transform 0.3s;
+    }
+    .review-img-thumb:hover {
+        transform: scale(1.1);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <h2 class="mb-4"><i class="fas fa-star"></i> Reviews & Feedback Management</h2>
@@ -73,6 +95,7 @@
                                     <th>User</th>
                                     <th>Rating</th>
                                     <th>Comment</th>
+                                    <th>Photos</th>
                                     <th>Date</th>
                                     <th>Status</th>
                                     <th>Actions</th>
@@ -80,7 +103,7 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td colspan="7" class="text-center">
+                                    <td colspan="8" class="text-center">
                                         <div class="spinner-border" role="status"></div>
                                         <p class="mt-2">Loading reviews...</p>
                                     </td>
@@ -125,6 +148,19 @@
     </div>
 </div>
 
+<!-- Review Detail Modal -->
+<div class="modal fade" id="reviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Review Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="reviewModalBody"></div>
+        </div>
+    </div>
+</div>
+
 <!-- Feedback Detail Modal -->
 <div class="modal fade" id="feedbackModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -140,6 +176,9 @@
 {% endblock %}
 
 {% block extra_js %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/css/lightbox.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/js/lightbox.min.js"></script>
+
 <script>
     let reviews = [];
     let feedbacks = [];
@@ -186,92 +225,183 @@
     }
     
     // Load reviews
- async function loadReviews() {
-    try {
-        // ✅ Load reviews for ALL destinations (no approval filter in main query)
-        reviews = [];
-        
-        for (const dest of allDestinations) {
-            // Get ALL reviews (approved and pending)
-            const approvedResponse = await fetch(`/api/reviews/destination/${dest.id}?is_approved=true`);
-            const approvedReviews = await approvedResponse.json();
+    async function loadReviews() {
+        try {
+            reviews = [];
             
-            const pendingResponse = await fetch(`/api/reviews/destination/${dest.id}?is_approved=false`);
-            const pendingReviews = await pendingResponse.json();
+            for (const dest of allDestinations) {
+                const approvedResponse = await fetch(`/api/reviews/destination/${dest.id}?is_approved=true`);
+                const approvedReviews = await approvedResponse.json();
+                
+                const pendingResponse = await fetch(`/api/reviews/destination/${dest.id}?is_approved=false`);
+                const pendingReviews = await pendingResponse.json();
+                
+                const allReviews = [
+                    ...approvedReviews.map(r => ({...r, destination_name: dest.name})),
+                    ...pendingReviews.map(r => ({...r, destination_name: dest.name}))
+                ];
+                
+                reviews.push(...allReviews);
+            }
             
-            // Combine both
-            const allReviews = [
-                ...approvedReviews.map(r => ({...r, destination_name: dest.name})),
-                ...pendingReviews.map(r => ({...r, destination_name: dest.name}))
-            ];
+            displayReviews();
             
-            reviews.push(...allReviews);
+        } catch (error) {
+            console.error('Error loading reviews:', error);
         }
-        
-        displayReviews();
-        
-    } catch (error) {
-        console.error('Error loading reviews:', error);
     }
-}
     
     // Display reviews
     function displayReviews() {
-    const tbody = document.querySelector('#reviewsTable tbody');
-    
-    if (!reviews || reviews.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="7" class="text-center text-muted py-5">
-                    <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
-                    <p>No reviews yet</p>
+        const tbody = document.querySelector('#reviewsTable tbody');
+        
+        if (!reviews || reviews.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-5">
+                        <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                        <p>No reviews yet</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        reviews.sort((a, b) => {
+            if (a.is_approved !== b.is_approved) {
+                return a.is_approved ? 1 : -1;
+            }
+            return new Date(b.created_at) - new Date(a.created_at);
+        });
+        
+        tbody.innerHTML = reviews.map(review => `
+            <tr class="${!review.is_approved ? 'table-warning' : ''}">
+                <td><strong>${review.destination_name || 'Unknown'}</strong></td>
+                <td>${review.user_name || 'Anonymous'}</td>
+                <td>
+                    <div style="color: #ffc107;">
+                        ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}
+                    </div>
+                </td>
+                <td>${(review.comment || '').substring(0, 50)}${review.comment && review.comment.length > 50 ? '...' : ''}</td>
+                <td>
+                    ${review.images && review.images.length > 0 ? `
+                        <span class="badge bg-info">
+                            <i class="fas fa-images"></i> ${review.images.length}
+                        </span>
+                    ` : '<span class="text-muted">No photos</span>'}
+                </td>
+                <td><small>${formatDate(review.created_at)}</small></td>
+                <td>
+                    ${review.is_approved 
+                        ? '<span class="badge bg-success">Approved</span>' 
+                        : '<span class="badge bg-warning">Pending</span>'
+                    }
+                </td>
+                <td class="table-actions">
+                    <button class="btn btn-sm btn-info" onclick="viewReview(${JSON.stringify(review).replace(/"/g, '&quot;')})" title="View Details">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-sm ${review.is_approved ? 'btn-warning' : 'btn-success'}" 
+                            onclick="toggleReview(${review.id})" 
+                            title="${review.is_approved ? 'Unapprove' : 'Approve'}">
+                        <i class="fas fa-toggle-${review.is_approved ? 'off' : 'on'}"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteReview(${review.id})" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </td>
             </tr>
-        `;
-        return;
+        `).join('');
     }
     
-    // Sort: Pending first, then by date
-    reviews.sort((a, b) => {
-        if (a.is_approved !== b.is_approved) {
-            return a.is_approved ? 1 : -1; // Pending first
-        }
-        return new Date(b.created_at) - new Date(a.created_at);
-    });
-    
-    tbody.innerHTML = reviews.map(review => `
-        <tr class="${!review.is_approved ? 'table-warning' : ''}">
-            <td><strong>${review.destination_name || 'Unknown'}</strong></td>
-            <td>${review.user_name || 'Anonymous'}</td>
-            <td>
-                <div style="color: #ffc107;">
+    // View review details
+    function viewReview(review) {
+        const modalBody = document.getElementById('reviewModalBody');
+        
+        modalBody.innerHTML = `
+            <div class="mb-3">
+                <strong>Destination:</strong> ${review.destination_name}
+            </div>
+            <div class="mb-3">
+                <strong>Reviewer:</strong> ${review.user_name || 'Anonymous'}
+            </div>
+            <div class="mb-3">
+                <strong>Rating:</strong> 
+                <span style="color: #ffc107;">
                     ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}
-                </div>
-            </td>
-            <td>${(review.comment || '').substring(0, 50)}${review.comment && review.comment.length > 50 ? '...' : ''}</td>
-            <td><small>${formatDate(review.created_at)}</small></td>
-            <td>
+                </span>
+            </div>
+            <div class="mb-3">
+                <strong>Date:</strong> ${formatDateTime(review.created_at)}
+            </div>
+            <div class="mb-3">
+                <strong>Status:</strong> 
                 ${review.is_approved 
                     ? '<span class="badge bg-success">Approved</span>' 
                     : '<span class="badge bg-warning">Pending</span>'
                 }
-            </td>
-            <td class="table-actions">
-                <a href="/destination/${review.destination_id}" class="btn btn-sm btn-info" target="_blank" title="View">
-                    <i class="fas fa-eye"></i>
-                </a>
-                <button class="btn btn-sm ${review.is_approved ? 'btn-warning' : 'btn-success'}" 
-                        onclick="toggleReview(${review.id})" 
-                        title="${review.is_approved ? 'Unapprove' : 'Approve'}">
-                    <i class="fas fa-toggle-${review.is_approved ? 'off' : 'on'}"></i>
-                </button>
-                <button class="btn btn-sm btn-danger" onclick="deleteReview(${review.id})" title="Delete">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        </tr>
-    `).join('');
-}
+            </div>
+            <hr>
+            <div class="mb-3">
+                <strong>Review:</strong>
+                <p class="mt-2">${review.comment || 'No comment provided'}</p>
+            </div>
+            ${review.images && review.images.length > 0 ? `
+                <hr>
+                <div>
+                    <strong>Photos (${review.images.length}):</strong>
+                    <div class="row g-2 mt-2">
+                        ${review.images.map(img => `
+                            <div class="col-md-4">
+                                <div class="position-relative">
+                                    <a href="/uploads/${img.image_path}" data-lightbox="review-${review.id}">
+                                        <img src="/uploads/${img.image_path}" class="img-fluid rounded" style="width: 100%; height: 150px; object-fit: cover;">
+                                    </a>
+                                    <button class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1" 
+                                            onclick="deleteReviewImage(${img.id}, ${review.id})" 
+                                            title="Delete Photo">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+        `;
+        
+        const modal = new bootstrap.Modal(document.getElementById('reviewModal'));
+        modal.show();
+    }
+    
+    // Delete review image
+    async function deleteReviewImage(imageId, reviewId) {
+        if (!confirm('Delete this photo? This action cannot be undone.')) return;
+        
+        try {
+            showLoading();
+            
+            const response = await fetch(`/api/admin/review-images/${imageId}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            
+            if (!response.ok) throw new Error('Failed to delete image');
+            
+            showAlert('success', 'Photo deleted successfully!');
+            
+            // Close modal and reload
+            bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
+            await loadReviews();
+            
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('error', 'Error deleting photo. Please try again.');
+        } finally {
+            hideLoading();
+        }
+    }
     
     // Load feedback
     async function loadFeedback() {
@@ -402,7 +532,7 @@
             if (!response.ok) throw new Error('Failed to mark as read');
             
             loadFeedback();
-            loadAllData(); // Refresh unread count
+            loadAllData();
             
         } catch (error) {
             console.error('Error:', error);

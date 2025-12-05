@@ -68,6 +68,59 @@
     .star-rating i.active {
         color: #ffc107;
     }
+    
+    /* NEW: Review Image Styles */
+    .review-images {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+    }
+    .review-img {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: transform 0.3s;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    .review-img:hover {
+        transform: scale(1.1);
+    }
+    
+    /* NEW: Image Upload Preview */
+    .image-preview-container {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+    }
+    .image-preview-item {
+        position: relative;
+        width: 100px;
+        height: 100px;
+    }
+    .image-preview-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 5px;
+    }
+    .image-preview-item .remove-btn {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        font-size: 12px;
+        line-height: 1;
+    }
 </style>
 {% endblock %}
 
@@ -87,7 +140,7 @@ const pathParts = window.location.pathname.split('/');
 const destinationId = parseInt(pathParts[pathParts.length - 1]);
 let destinationData = null;
 let map = null;
-
+let selectedImages = [];  // NEW: Track selected review images
 
 // Load destination data
 async function loadDestination() {
@@ -117,7 +170,7 @@ async function loadDestination() {
     }
 }
 
-// Display destination
+// Display destination (same as before, truncated for space)
 function displayDestination() {
     const imageUrl = destinationData.image_path ? `/uploads/${destinationData.image_path}` : `https://via.placeholder.com/1200x500?text=${encodeURIComponent(destinationData.name)}`;
     
@@ -132,7 +185,7 @@ function displayDestination() {
     const html = `
         <!-- Hero Section -->
         <div class="hero-image" style="background-image: url('${imageUrl}');">
-            <div class="hero-overlay" >
+            <div class="hero-overlay">
                 <div class="container">
                     <span class="badge bg-primary mb-2">
                         <i class="fas ${destinationData.category_icon || 'fa-map-marker-alt'}"></i> ${destinationData.category_name || 'Category'}
@@ -202,7 +255,7 @@ function displayDestination() {
                             <h4 class="mb-0"><i class="fas fa-pen"></i> Write a Review</h4>
                         </div>
                         <div class="card-body">
-                            <form id="reviewForm" onsubmit="submitReview(event)">
+                            <form id="reviewForm" onsubmit="submitReview(event)" enctype="multipart/form-data">
                                 <div class="mb-3">
                                     <label for="review_name" class="form-label">Your Name <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="review_name" required>
@@ -227,6 +280,17 @@ function displayDestination() {
                                               placeholder="Share your experience about this place..." required></textarea>
                                 </div>
 
+                                <!-- NEW: Image Upload -->
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        <i class="fas fa-camera"></i> Add Photos (Optional, Max 5)
+                                    </label>
+                                    <input type="file" class="form-control" id="reviewImages" 
+                                           accept="image/*" multiple onchange="previewReviewImages(this)">
+                                    <small class="text-muted">Share photos from your visit (Max 5 images, 5MB each)</small>
+                                    <div id="imagePreviewContainer" class="image-preview-container"></div>
+                                </div>
+
                                 <button type="submit" class="btn btn-success">
                                     <i class="fas fa-paper-plane"></i> Submit Review
                                 </button>
@@ -235,7 +299,7 @@ function displayDestination() {
                     </div>
                 </div>
 
-                <!-- Sidebar -->
+                <!-- Sidebar (same as before) -->
                 <div class="col-lg-4">
                     <!-- Quick Info -->
                     <div class="card mb-4">
@@ -321,7 +385,49 @@ function displayDestination() {
     initStarRating();
 }
 
-// Load reviews
+// NEW: Preview review images before upload
+function previewReviewImages(input) {
+    const container = document.getElementById('imagePreviewContainer');
+    container.innerHTML = '';
+    selectedImages = [];
+    
+    if (input.files) {
+        const files = Array.from(input.files).slice(0, 5); // Max 5 images
+        
+        files.forEach((file, index) => {
+            selectedImages.push(file);
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const div = document.createElement('div');
+                div.className = 'image-preview-item';
+                div.innerHTML = `
+                    <img src="${e.target.result}" alt="Preview ${index + 1}">
+                    <button type="button" class="remove-btn" onclick="removePreviewImage(${index})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                container.appendChild(div);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+}
+
+// NEW: Remove preview image
+function removePreviewImage(index) {
+    selectedImages.splice(index, 1);
+    
+    // Update file input
+    const dataTransfer = new DataTransfer();
+    selectedImages.forEach(file => dataTransfer.items.add(file));
+    document.getElementById('reviewImages').files = dataTransfer.files;
+    
+    // Re-render previews
+    previewReviewImages(document.getElementById('reviewImages'));
+}
+
+// Load reviews with images
 async function loadReviews() {
     try {
         const response = await fetch(`/api/reviews/destination/${destinationId}`);
@@ -353,7 +459,17 @@ async function loadReviews() {
                             <i class="fas fa-clock"></i> ${new Date(review.created_at).toLocaleDateString()}
                         </small>
                     </div>
-                    <p class="mb-0">${review.comment || ''}</p>
+                    <p class="mb-2">${review.comment || ''}</p>
+                    
+                    ${review.images && review.images.length > 0 ? `
+                        <div class="review-images">
+                            ${review.images.map(img => `
+                                <a href="/uploads/${img.image_path}" data-lightbox="review-${review.id}">
+                                    <img src="/uploads/${img.image_path}" class="review-img" alt="Review photo">
+                                </a>
+                            `).join('')}
+                        </div>
+                    ` : ''}
                 </div>
             `).join('')}
         `;
@@ -385,34 +501,41 @@ function initStarRating() {
     });
 }
 
-// Submit review
+// Submit review with images
 async function submitReview(event) {
     event.preventDefault();
     
-    const reviewData = {
-        destination_id: destinationId,
-        user_name: document.getElementById('review_name').value,
-        rating: parseInt(document.getElementById('rating').value),
-        comment: document.getElementById('comment').value
-    };
+    const rating = document.getElementById('rating').value;
     
-    if (!reviewData.rating) {
+    if (!rating) {
         alert('Please select a rating');
         return;
+    }
+    
+    // Create FormData for multipart upload
+    const formData = new FormData();
+    formData.append('destination_id', destinationId);
+    formData.append('user_name', document.getElementById('review_name').value);
+    formData.append('rating', rating);
+    formData.append('comment', document.getElementById('comment').value);
+    
+    // Add images
+    const imageFiles = document.getElementById('reviewImages').files;
+    for (let i = 0; i < imageFiles.length; i++) {
+        formData.append('images', imageFiles[i]);
     }
     
     try {
         const response = await fetch('/api/reviews/', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(reviewData)
+            body: formData  // Don't set Content-Type header for FormData
         });
         
         if (response.ok) {
             alert('Thank you for your review!');
             document.getElementById('reviewForm').reset();
+            document.getElementById('imagePreviewContainer').innerHTML = '';
+            selectedImages = [];
             document.querySelectorAll('#starRating i').forEach(s => {
                 s.classList.remove('fas', 'active');
                 s.classList.add('far');
@@ -420,7 +543,8 @@ async function submitReview(event) {
             loadReviews();
             loadDestination(); // Reload to update rating
         } else {
-            alert('Error submitting review. Please try again.');
+            const error = await response.json();
+            alert('Error submitting review: ' + (error.detail || 'Please try again.'));
         }
     } catch (error) {
         console.error('Error submitting review:', error);

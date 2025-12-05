@@ -18,6 +18,7 @@ import shutil
 from pathlib import Path
 import uuid
 from datetime import datetime
+from app.models.review_image import ReviewImage
 
 router = APIRouter()
 
@@ -645,3 +646,25 @@ async def delete_user(
     db.commit()
     
     return {"message": "User deleted successfully"}
+
+@router.delete("/review-images/{image_id}")
+async def delete_review_image(
+    image_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """Delete a review image"""
+    
+    image = db.query(ReviewImage).filter(ReviewImage.id == image_id).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    # Delete file
+    image_path = UPLOAD_DIR / image.image_path
+    if image_path.exists():
+        image_path.unlink()
+    
+    db.delete(image)
+    db.commit()
+    
+    return {"message": "Review image deleted successfully"}
