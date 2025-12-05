@@ -155,10 +155,99 @@
     </div>
 </div>
 
+<!-- Feedback Section -->
+<div class="container mt-5 mb-5" id="feedback">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow-lg border-0" style="border-radius: 15px; overflow: hidden;">
+                <div class="card-header text-white text-center py-4" style="background: linear-gradient(135deg, #132365ff 0%, #4b59a3ff 100%);">
+                    <h2 class="mb-2"><i class="fas fa-star"></i> We Value Your Feedback</h2>
+                    <p class="mb-0">Help us improve the Ormoc Tourism Guide System</p>
+                    <div class="rating mt-3" id="overallRatingContainer" style="font-size: 1.2rem;">
+                        Loading...
+                    </div>
+                </div>
+                
+                <div class="card-body p-4">
+                    <div id="feedbackAlertContainer"></div>
+
+                    <form id="feedbackForm" onsubmit="submitFeedback(event)">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Your Name *</label>
+                                <input type="text" class="form-control" id="feedback_user_name" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Email (Optional)</label>
+                                <input type="email" class="form-control" id="feedback_email">
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Rate the Tourism Guide System *</label>
+                            <div class="text-center">
+                                <div class="star-rating" style="display: inline-flex; direction: rtl; font-size: 2.5rem;">
+                                    <input type="radio" name="feedback_rating" value="5" id="feedback_rating5" required style="display: none;">
+                                    <label for="feedback_rating5" style="color: #ddd; cursor: pointer; padding: 0 10px;"><i class="fas fa-star"></i></label>
+                                    <input type="radio" name="feedback_rating" value="4" id="feedback_rating4" style="display: none;">
+                                    <label for="feedback_rating4" style="color: #ddd; cursor: pointer; padding: 0 10px;"><i class="fas fa-star"></i></label>
+                                    <input type="radio" name="feedback_rating" value="3" id="feedback_rating3" style="display: none;">
+                                    <label for="feedback_rating3" style="color: #ddd; cursor: pointer; padding: 0 10px;"><i class="fas fa-star"></i></label>
+                                    <input type="radio" name="feedback_rating" value="2" id="feedback_rating2" style="display: none;">
+                                    <label for="feedback_rating2" style="color: #ddd; cursor: pointer; padding: 0 10px;"><i class="fas fa-star"></i></label>
+                                    <input type="radio" name="feedback_rating" value="1" id="feedback_rating1" style="display: none;">
+                                    <label for="feedback_rating1" style="color: #ddd; cursor: pointer; padding: 0 10px;"><i class="fas fa-star"></i></label>
+                                </div>
+                                <div class="mt-2">
+                                    <small class="text-muted">Click on a star to rate</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Feedback Category *</label>
+                            <select class="form-select" id="feedback_category" required>
+                                <option value="general">General Feedback</option>
+                                <option value="usability">Usability & Navigation</option>
+                                <option value="features">Features & Functionality</option>
+                                <option value="content">Content & Information</option>
+                                <option value="design">Design & Interface</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Your Feedback *</label>
+                            <textarea class="form-control" id="feedback_text" rows="5" 
+                                      placeholder="Tell us what you think about our tourism guide system..." 
+                                      required minlength="10"></textarea>
+                            <small class="text-muted">Share your experience, suggestions, or report any issues.</small>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-lg w-100" style="background: linear-gradient(135deg, #132365ff 0%, #4b59a3ff 100%); border: none;">
+                            <i class="fas fa-paper-plane"></i> Submit Feedback
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Recent Feedback -->
+            <div class="mt-5">
+                <h3 class="mb-4"><i class="fas fa-comments"></i> Recent Feedback from Visitors</h3>
+                
+                <div class="row" id="feedbackContainer">
+                    <div class="col-12 text-center">
+                        <p class="text-muted">Loading feedback...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
 /* Custom Leaflet Routing Machine styles */
 .leaflet-routing-container {
-    display: none !important; /* Hide default routing panel */
+    display: none !important;
 }
 
 .leaflet-routing-alt {
@@ -180,6 +269,16 @@
         box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
     }
 }
+
+/* Feedback card hover effect */
+.feedback-card {
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.feedback-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15) !important;
+}
 </style>
 {% endblock %}
 
@@ -192,7 +291,7 @@ let allDestinations = [];
 let map, routingControl, selectedRouteData = null;
 let destinationMarkers = [];
 let routePolyline = null;
-let userLocation = null; // Store user's GPS location
+let userLocation = null;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -201,6 +300,9 @@ document.addEventListener('DOMContentLoaded', function() {
     loadCategories();
     initMap();
     loadDestinations();
+    loadFeedbackStats();
+    loadPublicFeedback();
+    initFeedbackStarRating();
 });
 
 // Load statistics
@@ -259,7 +361,7 @@ async function loadDestinations(page = 1) {
     }
 }
 
-// Display destinations - UPDATED WITH CLICKABLE CARDS
+// Display destinations
 function displayDestinations(destinations) {
     const grid = document.getElementById('destinationsGrid');
     grid.innerHTML = '';
@@ -316,7 +418,6 @@ function displayDestinations(destinations) {
     });
 }
 
-// NEW: Navigate to destination detail page
 function navigateToDestination(destinationId) {
     window.location.href = `/destination/${destinationId}`;
 }
@@ -359,11 +460,9 @@ function initMap() {
 
 // Update map markers
 function updateMapMarkers() {
-    // Clear existing markers
     destinationMarkers.forEach(marker => map.removeLayer(marker));
     destinationMarkers = [];
     
-    // Add destination markers
     allDestinations.forEach(dest => {
         if (dest.latitude && dest.longitude) {
             const iconHtml = `<div style="background: #132365ff; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
@@ -399,8 +498,6 @@ function updateMapMarkers() {
             destinationMarkers.push(marker);
         }
     });
-    
-    console.log(`✅ Added ${destinationMarkers.length} markers to map`);
 }
 
 // Populate route selection dropdowns
@@ -408,11 +505,9 @@ function populateRouteSelects() {
     const originSelect = document.getElementById('routeOrigin');
     const destSelect = document.getElementById('routeDestination');
     
-    // Clear existing options (keep placeholder and GPS option)
     originSelect.innerHTML = '<option value="">Select Origin</option><option value="gps" data-gps="true">📍 Use My Current Location (GPS)</option>';
     destSelect.innerHTML = '<option value="">Select Destination</option>';
     
-    // Add destinations that have coordinates
     allDestinations
         .filter(dest => dest.latitude && dest.longitude)
         .forEach(dest => {
@@ -449,11 +544,9 @@ function useGPSLocation() {
                 lng: position.coords.longitude
             };
             
-            // Select GPS option
             document.getElementById('routeOrigin').value = 'gps';
             document.getElementById('gpsStatus').innerHTML = '<span class="text-success"><i class="fas fa-check-circle"></i> Location acquired</span>';
             
-            // Add marker for user location
             if (window.userLocationMarker) {
                 map.removeLayer(window.userLocationMarker);
             }
@@ -471,7 +564,6 @@ function useGPSLocation() {
             
             map.setView([userLocation.lat, userLocation.lng], 15);
             
-            // Trigger route calculation if destination is selected
             if (document.getElementById('routeDestination').value) {
                 calculateRoute();
             }
@@ -527,7 +619,6 @@ async function calculateRoute() {
     
     let originLat, originLng, originName;
     
-    // Check if GPS is selected
     if (originId === 'gps') {
         if (!userLocation) {
             alert('Please click the GPS button to get your current location first');
@@ -538,25 +629,21 @@ async function calculateRoute() {
         originLng = userLocation.lng;
         originName = 'Your Current Location';
     } else {
-        // Get coordinates from selected origin
         const originOption = originSelect.options[originSelect.selectedIndex];
         originLat = parseFloat(originOption.dataset.lat);
         originLng = parseFloat(originOption.dataset.lng);
         originName = originOption.textContent;
     }
     
-    // Get destination coordinates
     const destOption = destSelect.options[destSelect.selectedIndex];
     const destLat = parseFloat(destOption.dataset.lat);
     const destLng = parseFloat(destOption.dataset.lng);
     const destName = destOption.textContent;
     
-    // Remove previous routing control
     if (routingControl) {
         map.removeControl(routingControl);
     }
     
-    // Create new routing control
     routingControl = L.Routing.control({
         waypoints: [
             L.latLng(originLat, originLng),
@@ -576,10 +663,9 @@ async function calculateRoute() {
         addWaypoints: false,
         routeWhileDragging: false,
         fitSelectedRoutes: true,
-        show: false // Hide default instructions panel
+        show: false
     }).addTo(map);
     
-    // Listen for route found event
     routingControl.on('routesfound', function(e) {
         const route = e.routes[0];
         displayRouteInfo(route, originName, destName);
@@ -587,12 +673,11 @@ async function calculateRoute() {
     
     routingControl.on('routingerror', function(e) {
         console.error('Routing error:', e);
-        alert('Could not find a route between these locations. They may be too far apart or on different islands.');
+        alert('Could not find a route between these locations.');
     });
     
     document.getElementById('clearRouteBtn').classList.add('show');
     
-    // Scroll to map
     setTimeout(() => {
         document.getElementById('map').scrollIntoView({ 
             behavior: 'smooth', 
@@ -601,27 +686,23 @@ async function calculateRoute() {
     }, 300);
 }
 
-// Display route information
 function displayRouteInfo(route, originName, destName) {
-    const distance = (route.summary.totalDistance / 1000).toFixed(2); // Convert to km
-    const duration = Math.round(route.summary.totalTime / 60); // Convert to minutes
+    const distance = (route.summary.totalDistance / 1000).toFixed(2);
+    const duration = Math.round(route.summary.totalTime / 60);
     const hours = Math.floor(duration / 60);
     const minutes = duration % 60;
     const durationText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes} min`;
     
-    // Update stats
     document.getElementById('routeDistance').textContent = `${distance} km`;
     document.getElementById('routeDuration').textContent = durationText;
     
     document.getElementById('routeInfoPanel').style.display = 'block';
 }
 
-// Swap origin and destination
 function swapLocations() {
     const originSelect = document.getElementById('routeOrigin');
     const destSelect = document.getElementById('routeDestination');
     
-    // Don't swap if GPS is selected
     if (originSelect.value === 'gps') {
         alert('Cannot swap GPS location. Please select a destination from the list.');
         return;
@@ -636,14 +717,12 @@ function swapLocations() {
     }
 }
 
-// Clear route
 function clearRoute() {
     if (routingControl) {
         map.removeControl(routingControl);
         routingControl = null;
     }
     
-    // Remove user location marker if exists
     if (window.userLocationMarker) {
         map.removeLayer(window.userLocationMarker);
         window.userLocationMarker = null;
@@ -660,11 +739,9 @@ function clearRoute() {
     map.setView([11.0059, 124.6075], 13);
 }
 
-// Show destination on map
 function showOnMap(lat, lng, name) {
     map.setView([parseFloat(lat), parseFloat(lng)], 16);
     
-    // Find and open popup
     destinationMarkers.forEach(marker => {
         const markerLatLng = marker.getLatLng();
         if (Math.abs(markerLatLng.lat - lat) < 0.0001 && Math.abs(markerLatLng.lng - lng) < 0.0001) {
@@ -672,8 +749,195 @@ function showOnMap(lat, lng, name) {
         }
     });
     
-    // Scroll to map
     document.getElementById('routes').scrollIntoView({behavior: 'smooth'});
+}
+
+// ============ FEEDBACK FUNCTIONS ============
+
+// Load overall rating stats
+async function loadFeedbackStats() {
+    try {
+        const response = await fetch('/api/feedback/stats');
+        const stats = await response.json();
+        
+        const container = document.getElementById('overallRatingContainer');
+        
+        if (stats.total_feedback > 0 && stats.average_rating) {
+            const avg = stats.average_rating;
+            container.innerHTML = `
+                Overall Rating: 
+                ${'★'.repeat(Math.round(avg))}${'☆'.repeat(5 - Math.round(avg))}
+                <span class="ms-2">${avg.toFixed(1)} / 5</span>
+                <span class="ms-2">(${stats.total_feedback} ratings)</span>
+            `;
+        } else {
+            container.innerHTML = 'No ratings yet. Be the first to rate!';
+        }
+    } catch (error) {
+        console.error('Error loading feedback stats:', error);
+    }
+}
+
+// Load public feedback
+async function loadPublicFeedback() {
+    try {
+        const response = await fetch('/api/feedback/public');
+        const feedbacks = await response.json();
+        
+        const container = document.getElementById('feedbackContainer');
+        
+        if (feedbacks.length === 0) {
+            container.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle"></i> No feedback yet. Be the first to share your thoughts!
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = feedbacks.map(fb => `
+            <div class="col-md-6 mb-4">
+                <div class="card feedback-card h-100" style="border-left: 4px solid #667eea;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <h5 class="card-title mb-0">${fb.user_name}</h5>
+                            <span class="badge bg-secondary">${fb.category.charAt(0).toUpperCase() + fb.category.slice(1)}</span>
+                        </div>
+                        <div class="mb-2" style="color: #ffc107;">
+                            ${'★'.repeat(fb.rating)}${'☆'.repeat(5 - fb.rating)}
+                        </div>
+                        <p class="card-text">${fb.feedback}</p>
+                        <small class="text-muted">
+                            <i class="far fa-clock"></i> ${new Date(fb.created_at).toLocaleDateString()}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading feedback:', error);
+    }
+}
+
+// Initialize feedback star rating
+function initFeedbackStarRating() {
+    const starLabels = document.querySelectorAll('.star-rating label');
+    
+    starLabels.forEach(label => {
+        label.addEventListener('mouseover', function() {
+            const rating = this.previousElementSibling.value;
+            highlightStars(rating);
+        });
+        
+        label.addEventListener('click', function() {
+            const rating = this.previousElementSibling.value;
+            highlightStars(rating);
+        });
+    });
+    
+    const starRating = document.querySelector('.star-rating');
+    if (starRating) {
+        starRating.addEventListener('mouseleave', function() {
+            const checked = document.querySelector('input[name="feedback_rating"]:checked');
+            if (checked) {
+                highlightStars(checked.value);
+            } else {
+                resetStars();
+            }
+        });
+    }
+}
+
+function highlightStars(rating) {
+    const labels = document.querySelectorAll('.star-rating label');
+    labels.forEach((label, index) => {
+        const starValue = 5 - index;
+        if (starValue <= rating) {
+            label.style.color = '#ffc107';
+        } else {
+            label.style.color = '#ddd';
+        }
+    });
+}
+
+function resetStars() {
+    const labels = document.querySelectorAll('.star-rating label');
+    labels.forEach(label => {
+        label.style.color = '#ddd';
+    });
+}
+
+// Submit feedback
+async function submitFeedback(event) {
+    event.preventDefault();
+    
+    const ratingInput = document.querySelector('input[name="feedback_rating"]:checked');
+    if (!ratingInput) {
+        showFeedbackAlert('error', 'Please select a rating');
+        return;
+    }
+    
+    const feedbackData = {
+        user_name: document.getElementById('feedback_user_name').value,
+        email: document.getElementById('feedback_email').value || null,
+        rating: parseInt(ratingInput.value),
+        category: document.getElementById('feedback_category').value,
+        feedback: document.getElementById('feedback_text').value
+    };
+    
+    try {
+        const response = await fetch('/api/feedback/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(feedbackData)
+        });
+        
+        if (response.ok) {
+            showFeedbackAlert('success', 'Thank you for your feedback! We appreciate your input.');
+            document.getElementById('feedbackForm').reset();
+            resetStars();
+            loadPublicFeedback();
+            loadFeedbackStats();
+            
+            // Scroll to feedback section
+            setTimeout(() => {
+                document.getElementById('feedback').scrollIntoView({ behavior: 'smooth' });
+            }, 500);
+        } else {
+            const error = await response.json();
+            showFeedbackAlert('error', 'Error submitting feedback: ' + (error.detail || 'Please try again.'));
+        }
+    } catch (error) {
+        console.error('Error submitting feedback:', error);
+        showFeedbackAlert('error', 'Error submitting feedback. Please try again.');
+    }
+}
+
+// Show feedback alert
+function showFeedbackAlert(type, message) {
+    const alertContainer = document.getElementById('feedbackAlertContainer');
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const icon = type === 'success' ? 'check-circle' : 'exclamation-circle';
+    
+    alertContainer.innerHTML = `
+        <div class="alert ${alertClass} alert-dismissible fade show">
+            <i class="fas fa-${icon}"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    alertContainer.scrollIntoView({ behavior: 'smooth' });
+    
+    setTimeout(() => {
+        const alert = alertContainer.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
 }
 </script>
 {% endblock %}
