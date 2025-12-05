@@ -289,7 +289,7 @@ function displayDestinations(destinations) {
         
         const card = `
             <div class="col-md-4">
-                <div class="card destination-card">
+                <div class="card destination-card" onclick="navigateToDestination(${dest.id})" style="cursor: pointer;">
                     <div class="position-relative">
                         <img src="${imageUrl}" class="card-img-top" alt="${dest.name}" loading="lazy">
                         <span class="category-badge">
@@ -300,11 +300,11 @@ function displayDestinations(destinations) {
                         <h5 class="card-title">${dest.name}</h5>
                         <p class="card-text">${dest.description ? dest.description.substring(0, 100) + '...' : 'No description available'}</p>
                         <div class="mb-2">${ratingHtml}</div>
-                        <a href="/destination/${dest.id}" class="btn btn-primary btn-sm">
+                        <a href="/destination/${dest.id}" class="btn btn-primary btn-sm" onclick="event.stopPropagation();">
                             <i class="fas fa-info-circle"></i> View Details
                         </a>
                         ${dest.latitude && dest.longitude ? `
-                        <button class="btn btn-outline-primary btn-sm" onclick="showOnMap(${dest.latitude}, ${dest.longitude}, '${dest.name.replace(/'/g, "\\'")}')">
+                        <button class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation(); showOnMap(${dest.latitude}, ${dest.longitude}, '${dest.name.replace(/'/g, "\\'")}')">
                             <i class="fas fa-map-marker-alt"></i> Show on Map
                         </button>
                         ` : ''}

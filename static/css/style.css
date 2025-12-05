@@ -64,11 +64,16 @@ body {
     border: none;
     border-radius: 10px;
     overflow: hidden;
+    cursor: pointer;
 }
 
 .destination-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.destination-card:active {
+    transform: translateY(-2px);
 }
 
 .destination-card img {
