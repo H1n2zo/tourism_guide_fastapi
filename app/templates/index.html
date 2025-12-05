@@ -259,7 +259,7 @@ async function loadDestinations(page = 1) {
     }
 }
 
-// Display destinations
+// Display destinations - UPDATED WITH CLICKABLE CARDS
 function displayDestinations(destinations) {
     const grid = document.getElementById('destinationsGrid');
     grid.innerHTML = '';
@@ -287,7 +287,7 @@ function displayDestinations(destinations) {
             <small class="rating-text">${dest.avg_rating.toFixed(1)} / 5 (${dest.review_count} reviews)</small>
         ` : `<div class="not-rated"><i class="far fa-star"></i> Not rated yet</div>`;
         
-    const card = `
+        const card = `
             <div class="col-md-4">
                 <div class="card destination-card" onclick="navigateToDestination(${dest.id})" style="cursor: pointer;">
                     <div class="position-relative">
@@ -314,6 +314,11 @@ function displayDestinations(destinations) {
         `;
         grid.innerHTML += card;
     });
+}
+
+// NEW: Navigate to destination detail page
+function navigateToDestination(destinationId) {
+    window.location.href = `/destination/${destinationId}`;
 }
 
 // Display pagination
@@ -609,24 +614,6 @@ function displayRouteInfo(route, originName, destName) {
     document.getElementById('routeDuration').textContent = durationText;
     
     document.getElementById('routeInfoPanel').style.display = 'block';
-}
-
-// Get icon for instruction type
-function getInstructionIcon(type) {
-    const icons = {
-        'Head': 'fa-arrow-up',
-        'Left': 'fa-arrow-left',
-        'Right': 'fa-arrow-right',
-        'SharpLeft': 'fa-arrow-left',
-        'SharpRight': 'fa-arrow-right',
-        'SlightLeft': 'fa-arrow-left',
-        'SlightRight': 'fa-arrow-right',
-        'Straight': 'fa-arrow-up',
-        'WaypointReached': 'fa-flag-checkered',
-        'Roundabout': 'fa-circle-notch',
-        'DestinationReached': 'fa-map-marker-alt'
-    };
-    return icons[type] || 'fa-arrow-right';
 }
 
 // Swap origin and destination

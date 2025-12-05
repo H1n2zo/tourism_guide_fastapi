@@ -58,6 +58,9 @@ body {
     box-shadow: 0 5px 20px rgba(0,0,0,0.1);
 }
 
+/* Add these styles to your existing static/css/style.css */
+
+/* Enhanced clickable destination cards */
 .destination-card {
     transition: transform 0.3s, box-shadow 0.3s;
     height: 100%;
@@ -65,15 +68,66 @@ body {
     border-radius: 10px;
     overflow: hidden;
     cursor: pointer;
+    position: relative;
+}
+
+.destination-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: transparent;
+    transition: background 0.3s;
+    pointer-events: none;
+    z-index: 1;
 }
 
 .destination-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    transform: translateY(-10px);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.25);
+}
+
+.destination-card:hover::before {
+    background: rgba(19, 35, 101, 0.03);
 }
 
 .destination-card:active {
-    transform: translateY(-2px);
+    transform: translateY(-5px);
+}
+
+/* Ensure buttons are clickable within the card */
+.destination-card .btn {
+    position: relative;
+    z-index: 2;
+}
+
+/* Add a subtle hover effect to show it's clickable */
+.destination-card .card-body {
+    position: relative;
+    z-index: 1;
+}
+
+.destination-card:hover .card-title {
+    color: #132365ff;
+    transition: color 0.3s;
+}
+
+/* Add pointer cursor hint */
+.destination-card:hover {
+    cursor: pointer;
+}
+
+/* Optional: Add a subtle click indicator */
+@keyframes clickPulse {
+    0% { transform: translateY(-10px) scale(1); }
+    50% { transform: translateY(-10px) scale(0.98); }
+    100% { transform: translateY(-10px) scale(1); }
+}
+
+.destination-card:active {
+    animation: clickPulse 0.3s ease;
 }
 
 .destination-card img {
