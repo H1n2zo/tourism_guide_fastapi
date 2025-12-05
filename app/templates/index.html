@@ -72,47 +72,77 @@
 
 <!-- Map Section with Route Finder -->
 <div class="container mt-5" id="routes">
-    <h2 class="mb-4"><i class="fas fa-map"></i> Interactive Map & Route Finder</h2>
+    <h2 class="mb-4"><i class="fas fa-route"></i> Interactive Route Finder</h2>
     
     <div class="route-panel">
         <div class="row mb-4">
             <div class="col-md-12">
-                <h5 class="mb-3"><i class="fas fa-filter"></i> Filter Routes</h5>
+                <h5 class="mb-3"><i class="fas fa-directions"></i> Plan Your Route</h5>
+                <p class="text-muted">Select origin and destination to calculate the best route with real distance and travel time.</p>
             </div>
-            <div class="col-md-4">
-                <label class="form-label">Filter by Origin</label>
-                <select class="form-select" id="filterOrigin" onchange="filterRoutes()">
-                    <option value="">All Origins</option>
-                </select>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-5">
+                <label class="form-label fw-bold">
+                    <i class="fas fa-map-marker-alt text-success"></i> Starting Point
+                </label>
+                <div class="input-group">
+                    <select class="form-select form-select-lg" id="routeOrigin" onchange="calculateRoute()">
+                        <option value="">Select Origin</option>
+                        <option value="gps" data-gps="true">📍 Use My Current Location (GPS)</option>
+                    </select>
+                    <button class="btn btn-success" onclick="useGPSLocation()" title="Use GPS Location">
+                        <i class="fas fa-crosshairs"></i>
+                    </button>
+                </div>
+                <small class="text-muted" id="gpsStatus"></small>
             </div>
-            <div class="col-md-4">
-                <label class="form-label">Filter by Destination</label>
-                <select class="form-select" id="filterDestination" onchange="filterRoutes()">
-                    <option value="">All Destinations</option>
-                </select>
+            <div class="col-md-2 d-flex align-items-end justify-content-center">
+                <button class="btn btn-outline-primary" onclick="swapLocations()" title="Swap locations">
+                    <i class="fas fa-exchange-alt"></i>
+                </button>
             </div>
-            <div class="col-md-4">
-                <label class="form-label">Filter by Transport</label>
-                <select class="form-select" id="filterTransport" onchange="filterRoutes()">
-                    <option value="">All Transport Modes</option>
-                    <option value="jeepney">Jeepney</option>
-                    <option value="taxi">Taxi</option>
-                    <option value="bus">Bus</option>
-                    <option value="van">Van</option>
-                    <option value="tricycle">Tricycle</option>
-                    <option value="walking">Walking</option>
+            <div class="col-md-5">
+                <label class="form-label fw-bold">
+                    <i class="fas fa-map-marker-alt text-danger"></i> Destination
+                </label>
+                <select class="form-select form-select-lg" id="routeDestination" onchange="calculateRoute()">
+                    <option value="">Select Destination</option>
                 </select>
             </div>
         </div>
 
-        <hr class="my-4">
-        
-        <h5 class="mb-4"><i class="fas fa-route"></i> Available Routes</h5>
-        
-        <div id="routesContainer">
-            <div class="text-center text-muted">
-                <i class="fas fa-spinner fa-spin fa-2x"></i>
-                <p class="mt-2">Loading routes...</p>
+        <!-- Route Information Panel -->
+        <div id="routeInfoPanel" style="display: none;">
+            <div class="alert alert-info mb-4" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-left: 4px solid #2196f3; border-radius: 10px;">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <i class="fas fa-route fa-2x text-primary"></i>
+                    </div>
+                    <div class="col">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-road text-primary me-2"></i>
+                                    <div>
+                                        <strong id="routeDistance" class="d-block" style="font-size: 1.1rem;">-</strong>
+                                        <small class="text-muted">Distance</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-clock text-success me-2"></i>
+                                    <div>
+                                        <strong id="routeDuration" class="d-block" style="font-size: 1.1rem;">-</strong>
+                                        <small class="text-muted">Travel Time</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -124,6 +154,33 @@
         <div id="map"></div>
     </div>
 </div>
+
+<style>
+/* Custom Leaflet Routing Machine styles */
+.leaflet-routing-container {
+    display: none !important; /* Hide default routing panel */
+}
+
+.leaflet-routing-alt {
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+/* GPS pulse animation */
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+    }
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}
@@ -132,10 +189,10 @@ let currentPage = 1;
 let currentSearch = '';
 let currentCategory = '';
 let allDestinations = [];
-let allRoutes = [];
 let map, routingControl, selectedRouteData = null;
 let destinationMarkers = [];
 let routePolyline = null;
+let userLocation = null; // Store user's GPS location
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -144,7 +201,6 @@ document.addEventListener('DOMContentLoaded', function() {
     loadCategories();
     initMap();
     loadDestinations();
-    loadRoutes();
 });
 
 // Load statistics
@@ -196,6 +252,7 @@ async function loadDestinations(page = 1) {
         displayDestinations(data.destinations);
         displayPagination(data);
         updateMapMarkers();
+        populateRouteSelects();
         
     } catch (error) {
         console.error('❌ Error loading destinations:', error);
@@ -281,161 +338,6 @@ function applyFilters() {
     loadDestinations(1);
 }
 
-// Load routes
-async function loadRoutes() {
-    try {
-        console.log('🔄 Loading routes...');
-        const response = await fetch('/api/routes/');
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        allRoutes = await response.json();
-        console.log(`✅ Loaded ${allRoutes.length} routes`);
-        
-        displayRoutes(allRoutes);
-        populateRouteFilters(allRoutes);
-        
-    } catch (error) {
-        console.error('❌ Error loading routes:', error);
-        document.getElementById('routesContainer').innerHTML = `
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-triangle"></i> 
-                Failed to load routes. Please refresh the page.
-            </div>
-        `;
-    }
-}
-
-// Display routes
-function displayRoutes(routes) {
-    const container = document.getElementById('routesContainer');
-    
-    if (!routes || routes.length === 0) {
-        container.innerHTML = `
-            <div class="no-routes-message">
-                <i class="fas fa-route"></i>
-                <h5>No Routes Available</h5>
-                <p>Routes will be displayed here once administrators add them.</p>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = routes.map(route => {
-        const totalFare = route.total_fare ? `₱${parseFloat(route.total_fare).toFixed(2)}` : 'N/A';
-        const routeName = route.route_name || `${route.origin_name || 'Unknown'} to ${route.destination_name || 'Unknown'}`;
-        
-        return `
-            <div class="route-card" onclick='selectRoute(${JSON.stringify(route).replace(/'/g, "\\'")})'
-                 data-route-id="${route.id}"
-                 data-origin-id="${route.origin_id || ''}"
-                 data-destination-id="${route.destination_id || ''}"
-                 data-transport="${route.transport_mode}">
-                <div class="route-header">
-                    <h6 class="route-title">${routeName}</h6>
-                    <span class="transport-badge transport-${route.transport_mode}">
-                        <i class="fas fa-bus"></i> ${route.transport_mode.charAt(0).toUpperCase() + route.transport_mode.slice(1)}
-                    </span>
-                </div>
-                
-                <div class="route-locations">
-                    <i class="fas fa-map-marker-alt"></i>
-                    <span>${route.origin_name || 'Unknown'}</span>
-                    <span class="route-arrow"><i class="fas fa-arrow-right"></i></span>
-                    <span>${route.destination_name || 'Unknown'}</span>
-                </div>
-                
-                <div class="route-details">
-                    ${route.distance_km ? `
-                    <div class="route-detail-item">
-                        <i class="fas fa-road"></i>
-                        <div>
-                            <span class="detail-label">Distance</span>
-                            <span class="detail-value">${parseFloat(route.distance_km).toFixed(1)} km</span>
-                        </div>
-                    </div>
-                    ` : ''}
-                    
-                    ${route.estimated_time_minutes ? `
-                    <div class="route-detail-item">
-                        <i class="fas fa-clock"></i>
-                        <div>
-                            <span class="detail-label">Duration</span>
-                            <span class="detail-value">${route.estimated_time_minutes} min</span>
-                        </div>
-                    </div>
-                    ` : ''}
-                    
-                    <div class="route-detail-item">
-                        <i class="fas fa-peso-sign"></i>
-                        <div>
-                            <span class="detail-label">Fare</span>
-                            <span class="detail-value">${totalFare}</span>
-                        </div>
-                    </div>
-                </div>
-                
-                ${route.description ? `
-                <div class="route-description">
-                    <i class="fas fa-info-circle"></i> ${route.description}
-                </div>
-                ` : ''}
-            </div>
-        `;
-    }).join('');
-}
-
-// Populate route filter dropdowns
-function populateRouteFilters(routes) {
-    const origins = new Set();
-    const destinations = new Set();
-    
-    routes.forEach(route => {
-        if (route.origin_id && route.origin_name) {
-            origins.add(JSON.stringify({id: route.origin_id, name: route.origin_name}));
-        }
-        if (route.destination_id && route.destination_name) {
-            destinations.add(JSON.stringify({id: route.destination_id, name: route.destination_name}));
-        }
-    });
-    
-    const originSelect = document.getElementById('filterOrigin');
-    origins.forEach(item => {
-        const {id, name} = JSON.parse(item);
-        const option = document.createElement('option');
-        option.value = id;
-        option.textContent = name;
-        originSelect.appendChild(option);
-    });
-    
-    const destSelect = document.getElementById('filterDestination');
-    destinations.forEach(item => {
-        const {id, name} = JSON.parse(item);
-        const option = document.createElement('option');
-        option.value = id;
-        option.textContent = name;
-        destSelect.appendChild(option);
-    });
-}
-
-// Filter routes
-function filterRoutes() {
-    const originFilter = document.getElementById('filterOrigin').value;
-    const destinationFilter = document.getElementById('filterDestination').value;
-    const transportFilter = document.getElementById('filterTransport').value;
-    
-    const filtered = allRoutes.filter(route => {
-        const matchOrigin = !originFilter || route.origin_id == originFilter;
-        const matchDest = !destinationFilter || route.destination_id == destinationFilter;
-        const matchTransport = !transportFilter || route.transport_mode === transportFilter;
-        return matchOrigin && matchDest && matchTransport;
-    });
-    
-    displayRoutes(filtered);
-}
-
 // Initialize Leaflet map
 function initMap() {
     console.log('🗺️ Initializing map...');
@@ -456,10 +358,9 @@ function updateMapMarkers() {
     destinationMarkers.forEach(marker => map.removeLayer(marker));
     destinationMarkers = [];
     
-    // Add destination markers with custom icons
+    // Add destination markers
     allDestinations.forEach(dest => {
         if (dest.latitude && dest.longitude) {
-            // Create custom icon based on category
             const iconHtml = `<div style="background: #132365ff; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
                 <i class="fas ${dest.category_icon || 'fa-map-marker-alt'}" style="font-size: 14px;"></i>
             </div>`;
@@ -497,6 +398,281 @@ function updateMapMarkers() {
     console.log(`✅ Added ${destinationMarkers.length} markers to map`);
 }
 
+// Populate route selection dropdowns
+function populateRouteSelects() {
+    const originSelect = document.getElementById('routeOrigin');
+    const destSelect = document.getElementById('routeDestination');
+    
+    // Clear existing options (keep placeholder and GPS option)
+    originSelect.innerHTML = '<option value="">Select Origin</option><option value="gps" data-gps="true">📍 Use My Current Location (GPS)</option>';
+    destSelect.innerHTML = '<option value="">Select Destination</option>';
+    
+    // Add destinations that have coordinates
+    allDestinations
+        .filter(dest => dest.latitude && dest.longitude)
+        .forEach(dest => {
+            const option1 = document.createElement('option');
+            option1.value = dest.id;
+            option1.textContent = dest.name;
+            option1.dataset.lat = dest.latitude;
+            option1.dataset.lng = dest.longitude;
+            originSelect.appendChild(option1);
+            
+            const option2 = document.createElement('option');
+            option2.value = dest.id;
+            option2.textContent = dest.name;
+            option2.dataset.lat = dest.latitude;
+            option2.dataset.lng = dest.longitude;
+            destSelect.appendChild(option2);
+        });
+}
+
+// Use GPS location
+function useGPSLocation() {
+    document.getElementById('gpsStatus').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Getting your location...';
+    
+    if (!navigator.geolocation) {
+        alert('Geolocation is not supported by your browser');
+        document.getElementById('gpsStatus').innerHTML = '<span class="text-danger">GPS not supported</span>';
+        return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            userLocation = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+            };
+            
+            // Select GPS option
+            document.getElementById('routeOrigin').value = 'gps';
+            document.getElementById('gpsStatus').innerHTML = '<span class="text-success"><i class="fas fa-check-circle"></i> Location acquired</span>';
+            
+            // Add marker for user location
+            if (window.userLocationMarker) {
+                map.removeLayer(window.userLocationMarker);
+            }
+            
+            const userIcon = L.divIcon({
+                html: '<div style="background: #28a745; color: white; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); animation: pulse 2s infinite;"><i class="fas fa-circle" style="font-size: 10px;"></i></div>',
+                className: 'user-location-marker',
+                iconSize: [35, 35],
+                iconAnchor: [17.5, 17.5]
+            });
+            
+            window.userLocationMarker = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon })
+                .addTo(map)
+                .bindPopup('<strong>Your Location</strong><br>Current GPS position');
+            
+            map.setView([userLocation.lat, userLocation.lng], 15);
+            
+            // Trigger route calculation if destination is selected
+            if (document.getElementById('routeDestination').value) {
+                calculateRoute();
+            }
+        },
+        function(error) {
+            let errorMsg = '';
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    errorMsg = 'Location access denied. Please enable location permissions.';
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    errorMsg = 'Location information unavailable.';
+                    break;
+                case error.TIMEOUT:
+                    errorMsg = 'Location request timed out.';
+                    break;
+                default:
+                    errorMsg = 'An unknown error occurred.';
+            }
+            alert(errorMsg);
+            document.getElementById('gpsStatus').innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-circle"></i> ${errorMsg}</span>`;
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        }
+    );
+}
+
+// Calculate route using Leaflet Routing Machine
+async function calculateRoute() {
+    const originSelect = document.getElementById('routeOrigin');
+    const destSelect = document.getElementById('routeDestination');
+    
+    const originId = originSelect.value;
+    const destId = destSelect.value;
+    
+    if (!originId || !destId) {
+        document.getElementById('routeInfoPanel').style.display = 'none';
+        document.getElementById('clearRouteBtn').classList.remove('show');
+        if (routingControl) {
+            map.removeControl(routingControl);
+            routingControl = null;
+        }
+        return;
+    }
+    
+    if (originId === destId) {
+        alert('Please select different origin and destination');
+        return;
+    }
+    
+    let originLat, originLng, originName;
+    
+    // Check if GPS is selected
+    if (originId === 'gps') {
+        if (!userLocation) {
+            alert('Please click the GPS button to get your current location first');
+            originSelect.value = '';
+            return;
+        }
+        originLat = userLocation.lat;
+        originLng = userLocation.lng;
+        originName = 'Your Current Location';
+    } else {
+        // Get coordinates from selected origin
+        const originOption = originSelect.options[originSelect.selectedIndex];
+        originLat = parseFloat(originOption.dataset.lat);
+        originLng = parseFloat(originOption.dataset.lng);
+        originName = originOption.textContent;
+    }
+    
+    // Get destination coordinates
+    const destOption = destSelect.options[destSelect.selectedIndex];
+    const destLat = parseFloat(destOption.dataset.lat);
+    const destLng = parseFloat(destOption.dataset.lng);
+    const destName = destOption.textContent;
+    
+    // Remove previous routing control
+    if (routingControl) {
+        map.removeControl(routingControl);
+    }
+    
+    // Create new routing control
+    routingControl = L.Routing.control({
+        waypoints: [
+            L.latLng(originLat, originLng),
+            L.latLng(destLat, destLng)
+        ],
+        router: L.Routing.osrmv1({
+            serviceUrl: 'https://router.project-osrm.org/route/v1'
+        }),
+        lineOptions: {
+            styles: [{
+                color: '#ffc107',
+                opacity: 0.8,
+                weight: 6
+            }]
+        },
+        showAlternatives: false,
+        addWaypoints: false,
+        routeWhileDragging: false,
+        fitSelectedRoutes: true,
+        show: false // Hide default instructions panel
+    }).addTo(map);
+    
+    // Listen for route found event
+    routingControl.on('routesfound', function(e) {
+        const route = e.routes[0];
+        displayRouteInfo(route, originName, destName);
+    });
+    
+    routingControl.on('routingerror', function(e) {
+        console.error('Routing error:', e);
+        alert('Could not find a route between these locations. They may be too far apart or on different islands.');
+    });
+    
+    document.getElementById('clearRouteBtn').classList.add('show');
+    
+    // Scroll to map
+    setTimeout(() => {
+        document.getElementById('map').scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+        });
+    }, 300);
+}
+
+// Display route information
+function displayRouteInfo(route, originName, destName) {
+    const distance = (route.summary.totalDistance / 1000).toFixed(2); // Convert to km
+    const duration = Math.round(route.summary.totalTime / 60); // Convert to minutes
+    const hours = Math.floor(duration / 60);
+    const minutes = duration % 60;
+    const durationText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes} min`;
+    
+    // Update stats
+    document.getElementById('routeDistance').textContent = `${distance} km`;
+    document.getElementById('routeDuration').textContent = durationText;
+    
+    document.getElementById('routeInfoPanel').style.display = 'block';
+}
+
+// Get icon for instruction type
+function getInstructionIcon(type) {
+    const icons = {
+        'Head': 'fa-arrow-up',
+        'Left': 'fa-arrow-left',
+        'Right': 'fa-arrow-right',
+        'SharpLeft': 'fa-arrow-left',
+        'SharpRight': 'fa-arrow-right',
+        'SlightLeft': 'fa-arrow-left',
+        'SlightRight': 'fa-arrow-right',
+        'Straight': 'fa-arrow-up',
+        'WaypointReached': 'fa-flag-checkered',
+        'Roundabout': 'fa-circle-notch',
+        'DestinationReached': 'fa-map-marker-alt'
+    };
+    return icons[type] || 'fa-arrow-right';
+}
+
+// Swap origin and destination
+function swapLocations() {
+    const originSelect = document.getElementById('routeOrigin');
+    const destSelect = document.getElementById('routeDestination');
+    
+    // Don't swap if GPS is selected
+    if (originSelect.value === 'gps') {
+        alert('Cannot swap GPS location. Please select a destination from the list.');
+        return;
+    }
+    
+    const temp = originSelect.value;
+    originSelect.value = destSelect.value;
+    destSelect.value = temp;
+    
+    if (originSelect.value && destSelect.value) {
+        calculateRoute();
+    }
+}
+
+// Clear route
+function clearRoute() {
+    if (routingControl) {
+        map.removeControl(routingControl);
+        routingControl = null;
+    }
+    
+    // Remove user location marker if exists
+    if (window.userLocationMarker) {
+        map.removeLayer(window.userLocationMarker);
+        window.userLocationMarker = null;
+    }
+    
+    userLocation = null;
+    
+    document.getElementById('routeOrigin').value = '';
+    document.getElementById('routeDestination').value = '';
+    document.getElementById('routeInfoPanel').style.display = 'none';
+    document.getElementById('clearRouteBtn').classList.remove('show');
+    document.getElementById('gpsStatus').innerHTML = '';
+    
+    map.setView([11.0059, 124.6075], 13);
+}
+
 // Show destination on map
 function showOnMap(lat, lng, name) {
     map.setView([parseFloat(lat), parseFloat(lng)], 16);
@@ -512,122 +688,5 @@ function showOnMap(lat, lng, name) {
     // Scroll to map
     document.getElementById('routes').scrollIntoView({behavior: 'smooth'});
 }
-
-// Select and display route
-function selectRoute(routeData) {
-    // Remove previous selection
-    document.querySelectorAll('.route-card').forEach(card => {
-        card.classList.remove('selected');
-    });
-    event.currentTarget.classList.add('selected');
-    
-    selectedRouteData = routeData;
-    
-    // Show route on map
-    showRouteOnMap();
-    
-    // 🔥 NEW: Scroll to map smoothly
-    setTimeout(() => {
-        const mapElement = document.getElementById('map');
-        if (mapElement) {
-            mapElement.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'center' 
-            });
-        }
-    }, 100);
-}
-
-// Show route on map
-function showRouteOnMap() {
-    if (!selectedRouteData) return;
-    
-    console.log('🛣️ Showing route:', selectedRouteData);
-    
-    // Clear previous route
-    if (routePolyline) {
-        map.removeLayer(routePolyline);
-    }
-    
-    const startLat = parseFloat(selectedRouteData.origin_lat);
-    const startLng = parseFloat(selectedRouteData.origin_lng);
-    const endLat = parseFloat(selectedRouteData.dest_lat);
-    const endLng = parseFloat(selectedRouteData.dest_lng);
-    
-    if (isNaN(startLat) || isNaN(startLng) || isNaN(endLat) || isNaN(endLng)) {
-        console.warn('⚠️ Invalid coordinates for route');
-        alert('This route does not have valid coordinates');
-        return;
-    }
-    
-    // Draw polyline with animation
-    routePolyline = L.polyline([[startLat, startLng], [endLat, endLng]], {
-        color: '#ffc107',
-        weight: 6,
-        opacity: 0.8,
-        dashArray: '10, 10',
-        className: 'route-polyline-animated'
-    }).addTo(map);
-    
-    // Add start/end markers
-    L.marker([startLat, startLng], {
-        icon: L.divIcon({
-            html: '<div style="background:#28a745;color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:bold;border:2px solid white;">A</div>',
-            className: '',
-            iconSize: [24, 24]
-        })
-    }).addTo(map).bindPopup(`<b>Start:</b> ${selectedRouteData.origin_name}`);
-    
-    L.marker([endLat, endLng], {
-        icon: L.divIcon({
-            html: '<div style="background:#dc3545;color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:bold;border:2px solid white;">B</div>',
-            className: '',
-            iconSize: [24, 24]
-        })
-    }).addTo(map).bindPopup(`<b>End:</b> ${selectedRouteData.destination_name}`);
-    
-    document.getElementById('clearRouteBtn').classList.add('show');
-    
-    // Fit bounds
-    const bounds = L.latLngBounds([startLat, startLng], [endLat, endLng]);
-    map.fitBounds(bounds, {padding: [80, 80]});
-    
-    console.log('✅ Route displayed on map');
-}
-
-// Clear route
-function clearRoute() {
-    if (routePolyline) {
-        map.removeLayer(routePolyline);
-        routePolyline = null;
-    }
-    
-    // Remove A/B markers (they're temporary)
-    map.eachLayer(layer => {
-        if (layer instanceof L.Marker && !destinationMarkers.includes(layer)) {
-            map.removeLayer(layer);
-        }
-    });
-    
-    document.querySelectorAll('.route-card').forEach(card => {
-        card.classList.remove('selected');
-    });
-    
-    document.getElementById('clearRouteBtn').classList.remove('show');
-    selectedRouteData = null;
-    map.setView([11.0059, 124.6075], 13);
-}
 </script>
-
-<style>
-.route-polyline-animated {
-    animation: dash 1s linear infinite;
-}
-
-@keyframes dash {
-    to {
-        stroke-dashoffset: -20;
-    }
-}
-</style>
 {% endblock %}
