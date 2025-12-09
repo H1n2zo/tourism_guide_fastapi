@@ -20,50 +20,314 @@
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/static/css/style.css">
-
     
+    <!-- Popup Menu Styles -->
+    <style>
+        body {
+            padding-top: 70px;
+        }
+
+        .top-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: linear-gradient(135deg, #132365ff 0%, #4b59a3ff 100%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .nav-brand {
+            color: white;
+            text-decoration: none;
+            font-size: 1.4rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: transform 0.3s;
+        }
+        
+        .nav-brand:hover {
+            transform: scale(1.05);
+            color: white;
+        }
+        
+        .hamburger {
+            width: 45px;
+            height: 45px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.3s;
+        }
+        
+        .hamburger:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .hamburger span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+        
+        .hamburger.active span:nth-child(1) {
+            transform: translateY(8px) rotate(45deg);
+        }
+        
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+        
+        .hamburger.active span:nth-child(3) {
+            transform: translateY(-8px) rotate(-45deg);
+        }
+        
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+        
+        .menu-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .popup-menu {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 350px;
+            height: 100vh;
+            background: linear-gradient(135deg, #132365ff 0%, #2a4088ff 100%);
+            box-shadow: -5px 0 20px rgba(0,0,0,0.5);
+            z-index: 1001;
+            transition: right 0.4s ease;
+            overflow-y: auto;
+            padding: 30px;
+        }
+        
+        .popup-menu.active {
+            right: 0;
+        }
+        
+        .menu-header {
+            color: white;
+            margin-bottom: 30px;
+            margin-top: 50px;
+        }
+        
+        .menu-header h3 {
+            margin: 0 0 5px 0;
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+        
+        .menu-header p {
+            opacity: 0.8;
+            font-size: 0.9rem;
+            margin: 0;
+        }
+        
+        .menu-items {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .menu-link {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 20px;
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+            margin-bottom: 8px;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+        
+        .menu-link:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateX(10px);
+            color: white;
+        }
+        
+        .menu-link i {
+            font-size: 1.3rem;
+            width: 30px;
+        }
+        
+        .admin-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid rgba(255,255,255,0.2);
+        }
+        
+        .admin-badge {
+            color: #ffd700;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,215,0,0.1);
+            padding: 8px 15px;
+            border-radius: 8px;
+        }
+        
+        @media (max-width: 576px) {
+            .popup-menu {
+                width: 100%;
+                right: -100%;
+            }
+            
+            .top-nav {
+                padding: 0 15px;
+            }
+            
+            .nav-brand {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
     
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Navigation Bar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/">
-                <i class="fas fa-map-marked-alt"></i> Tourism Guide
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.url.path == '/' %}active{% endif %}" href="/">
-                            <i class="fas fa-home"></i> Home
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/#destinations">
-                            <i class="fas fa-map-pin"></i> Destinations
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/#routes">
-                            <i class="fas fa-route"></i> Find Route
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/#feedback">
-                            <i class="fas fa-comment"></i> Feedback
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </div>
+    <!-- Top Navigation Bar -->
+    <nav class="top-nav">
+        <a href="/" class="nav-brand">
+            <i class="fas fa-map-marked-alt"></i>
+            <span>Tourism Guide</span>
+        </a>
+        
+        <button class="hamburger" id="hamburgerBtn" onclick="toggleMenu()">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
     </nav>
 
+    <!-- Menu Overlay -->
+    <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+
+    <!-- Popup Menu -->
+    <div class="popup-menu" id="popupMenu">
+        <div class="menu-header">
+            <h3>Navigation</h3>
+            <p>Explore Ormoc City Tourism</p>
+        </div>
+        
+        <!-- Main Menu Items -->
+        <ul class="menu-items">
+            <li>
+                <a href="/" class="menu-link">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="/#destinations" class="menu-link">
+                    <i class="fas fa-map-pin"></i>
+                    <span>Destinations</span>
+                </a>
+            </li>
+            <li>
+                <a href="/#routes" class="menu-link">
+                    <i class="fas fa-route"></i>
+                    <span>Find Route</span>
+                </a>
+            </li>
+            <li>
+                <a href="/#feedback" class="menu-link">
+                    <i class="fas fa-comment"></i>
+                    <span>Feedback</span>
+                </a>
+            </li>
+        </ul>
+        
+        <!-- Admin Section (shown only for admins) -->
+        <div class="admin-section" id="adminSection" style="display: none;">
+            <div class="admin-badge">
+                <i class="fas fa-crown"></i>
+                <span>Admin Access</span>
+            </div>
+            
+            <ul class="menu-items">
+                <li>
+                    <a href="/admin/dashboard" class="menu-link">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/admin/destinations" class="menu-link">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <span>Manage Destinations</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/admin/categories" class="menu-link">
+                        <i class="fas fa-tags"></i>
+                        <span>Categories</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/admin/routes" class="menu-link">
+                        <i class="fas fa-route"></i>
+                        <span>Routes</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/admin/reviews" class="menu-link">
+                        <i class="fas fa-star"></i>
+                        <span>Reviews & Feedback</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/admin/users" class="menu-link">
+                        <i class="fas fa-users"></i>
+                        <span>Users</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" onclick="handleLogout(); return false;" class="menu-link">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
     <!-- Main Content -->
-    <div style="padding-top: 76px;">
+    <div style="padding-top: 0;">
         {% block content %}{% endblock %}
     </div>
 
@@ -73,6 +337,7 @@
         <p><small>Powered by FastAPI, OpenStreetMap & Leaflet (100% Free & Open Source)</small></p>
     </footer>
 
+    <!-- Keyboard Shortcut for Admin Login -->
     <script>
         document.addEventListener('keydown', function(e) {
             if (e.ctrlKey && e.shiftKey && e.key === 'A') {
@@ -96,6 +361,82 @@
     <!-- Custom JS -->
     <script src="/static/js/main.js"></script>
     <script src="/static/js/auth.js"></script>
+    
+    <!-- Popup Menu Scripts -->
+    <script>
+        // Toggle menu
+        function toggleMenu() {
+            const hamburger = document.getElementById('hamburgerBtn');
+            const overlay = document.getElementById('menuOverlay');
+            const menu = document.getElementById('popupMenu');
+            
+            hamburger.classList.toggle('active');
+            overlay.classList.toggle('active');
+            menu.classList.toggle('active');
+            
+            // Prevent body scroll when menu is open
+            document.body.style.overflow = menu.classList.contains('active') ? 'hidden' : '';
+        }
+
+        // Close menu
+        function closeMenu() {
+            const hamburger = document.getElementById('hamburgerBtn');
+            const overlay = document.getElementById('menuOverlay');
+            const menu = document.getElementById('popupMenu');
+            
+            hamburger.classList.remove('active');
+            overlay.classList.remove('active');
+            menu.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Check authentication and show admin menu if needed
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                const response = await fetch('/api/auth/check-session');
+                const data = await response.json();
+                
+                if (data.logged_in && data.role === 'admin') {
+                    document.getElementById('adminSection').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error checking auth:', error);
+            }
+        });
+
+        // Handle logout
+        async function handleLogout() {
+            try {
+                const response = await fetch('/api/auth/logout', { method: 'POST' });
+                
+                if (response.ok) {
+                    localStorage.clear();
+                    alert('Logged out successfully!');
+                    closeMenu();
+                    window.location.href = '/';
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                alert('Error logging out. Please try again.');
+            }
+        }
+
+        // Close menu when clicking a link
+        document.querySelectorAll('.menu-link').forEach(link => {
+            link.addEventListener('click', function() {
+                if (!this.getAttribute('onclick')) {
+                    setTimeout(closeMenu, 200);
+                }
+            });
+        });
+
+        // Close menu on ESC key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeMenu();
+            }
+        });
+    </script>
     
     {% block extra_js %}{% endblock %}
 </body>
